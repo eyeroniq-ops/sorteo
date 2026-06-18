@@ -147,7 +147,7 @@ function Tickets() {
         ...prev,
         [selectedTicket]: { reserved: true }
       }));
-      setSuccessTicket({ number: selectedTicket, name });
+      setSuccessTicket({ number: selectedTicket, name, whatsapp });
       setShowModal(false);
     } catch (err) {
       setError('Error de conexión.');
@@ -236,7 +236,8 @@ function Tickets() {
 
             <div className="ticket-design-stub">
               <div className="stub-brand">Comin</div>
-              <div className="owner-name">{successTicket.name}</div>
+              <div className="owner-name" style={{ marginBottom: '0.2rem' }}>{successTicket.name}</div>
+              <div className="owner-phone" style={{ fontSize: '0.75rem', color: '#8a9990', marginBottom: '1.5rem' }}>{successTicket.whatsapp}</div>
               <div className="label">Boleto</div>
               <div className="number">{String(successTicket.number).padStart(3, '0')}</div>
             </div>
