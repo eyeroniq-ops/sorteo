@@ -335,12 +335,15 @@ function Tickets() {
   );
 }
 
+import Tombola from './Tombola';
+
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/boletos" element={<Tickets />} />
+        <Route path="/tombola" element={<Tombola />} />
       </Routes>
     </BrowserRouter>
   );
