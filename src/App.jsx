@@ -76,11 +76,6 @@ function Home() {
         
         <Countdown />
 
-        <div style={{ marginTop: '3rem' }}>
-          <Link to="/boletos" className="btn btn-primary" style={{ display: 'inline-block', padding: '1rem 3rem', fontSize: '1.2rem', textDecoration: 'none' }}>
-            Ir a los Boletos
-          </Link>
-        </div>
       </div>
     </div>
   );
