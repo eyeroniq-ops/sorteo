@@ -7,9 +7,10 @@ import { Link } from 'react-router-dom';
 import * as THREE from 'three';
 
 const R = 4;
-const w = 2 * R * Math.tan(Math.PI / 8) + 0.1;
+const w = 2 * R * Math.tan(Math.PI / 8) + 0.2;
 const t = 0.2;
 const L = 6;
+const OFFSET_Y = 8; // Elevamos la tombola
 
 function DrumPanel({ index, isDoor, isDrawing, drumAngle }) {
   const initAngle = (index / 8) * Math.PI * 2;
@@ -20,7 +21,7 @@ function DrumPanel({ index, isDoor, isDrawing, drumAngle }) {
   const [ref, api] = useBox(() => ({ 
     type: 'Kinematic', 
     args: [w, t, L],
-    position: [initX, initY, 0],
+    position: [initX, initY + OFFSET_Y, 0],
     rotation: [0, 0, initRotZ],
     collisionFilterGroup: 1,
     collisionFilterMask: 1,
@@ -36,7 +37,7 @@ function DrumPanel({ index, isDoor, isDrawing, drumAngle }) {
     const currentAngle = drumAngle.current + initAngle;
     const x = Math.cos(currentAngle) * R;
     const y = Math.sin(currentAngle) * R;
-    api.position.set(x, y, 0);
+    api.position.set(x, y + OFFSET_Y, 0);
     api.rotation.set(0, 0, currentAngle + Math.PI / 2);
   });
 
@@ -64,8 +65,8 @@ function DrumCaps({ drumAngle }) {
   const initFrontZ = L / 2;
   const initBackZ = -L / 2;
 
-  const [frontRef, frontApi] = useCylinder(() => ({ type: 'Kinematic', args: [R, R, 0.2, 8], position: [0, 0, initFrontZ], rotation: [Math.PI/2, 0, 0], friction: 0.8, restitution: 0.2 }));
-  const [backRef, backApi] = useCylinder(() => ({ type: 'Kinematic', args: [R, R, 0.2, 8], position: [0, 0, initBackZ], rotation: [Math.PI/2, 0, 0], friction: 0.8, restitution: 0.2 }));
+  const [frontRef, frontApi] = useCylinder(() => ({ type: 'Kinematic', args: [R, R, 0.2, 8], position: [0, OFFSET_Y, initFrontZ], rotation: [Math.PI/2, 0, 0], friction: 0.8, restitution: 0.2 }));
+  const [backRef, backApi] = useCylinder(() => ({ type: 'Kinematic', args: [R, R, 0.2, 8], position: [0, OFFSET_Y, initBackZ], rotation: [Math.PI/2, 0, 0], friction: 0.8, restitution: 0.2 }));
 
   useFrame(() => {
     frontApi.rotation.set(Math.PI/2, drumAngle.current - Math.PI/8, 0);
@@ -90,27 +91,47 @@ function DrumCaps({ drumAngle }) {
   );
 }
 
-function Funnel() {
-  // Funnel ramps
-  const [leftRef] = useBox(() => ({ type: 'Static', args: [10, 0.5, 8], position: [-4, -6, 0], rotation: [0, 0, -Math.PI / 4] }));
-  const [rightRef] = useBox(() => ({ type: 'Static', args: [10, 0.5, 8], position: [4, -6, 0], rotation: [0, 0, Math.PI / 4] }));
-  
-  // Vertical Chute (x= -0.6 to 0.6)
-  const [cLeft] = useBox(() => ({ type: 'Static', args: [0.5, 8, 4], position: [-0.85, -10, 0] }));
-  const [cRight] = useBox(() => ({ type: 'Static', args: [0.5, 8, 4], position: [0.85, -10, 0] }));
-  const [cFront] = useBox(() => ({ type: 'Static', args: [2.2, 8, 0.5], position: [0, -10, 2] }));
-  const [cBack] = useBox(() => ({ type: 'Static', args: [2.2, 8, 0.5], position: [0, -10, -2] }));
+function FunnelAndSlide() {
+  const bottomY = OFFSET_Y - 5; // Y = 3
 
-  const material = <meshPhysicalMaterial transparent transmission={0.9} roughness={0.1} color="#182218" />;
+  // Funnel (Pirámide invertida)
+  const [leftRef] = useBox(() => ({ type: 'Static', args: [10, 0.5, 10], position: [-4.2, bottomY + 2, 0], rotation: [0, 0, -Math.PI / 4], friction: 0.2 }));
+  const [rightRef] = useBox(() => ({ type: 'Static', args: [10, 0.5, 10], position: [4.2, bottomY + 2, 0], rotation: [0, 0, Math.PI / 4], friction: 0.2 }));
+  const [backRef] = useBox(() => ({ type: 'Static', args: [10, 0.5, 10], position: [0, bottomY + 2, -4.2], rotation: [Math.PI / 4, 0, 0], friction: 0.2 }));
+  const [frontRef] = useBox(() => ({ type: 'Static', args: [10, 0.5, 10], position: [0, bottomY + 2, 4.2], rotation: [-Math.PI / 4, 0, 0], friction: 0.2 }));
+
+  // Slide (Tobogán de cristal)
+  const length = 16;
+  const rotX = Math.PI / 6; // 30 degrees down
+  
+  const [floorRef] = useBox(() => ({ type: 'Static', args: [2.5, 0.5, length], position: [0, bottomY - 3, 6], rotation: [rotX, 0, 0], friction: 0.2 }));
+  const [leftWall] = useBox(() => ({ type: 'Static', args: [0.5, 1.5, length], position: [-1.25, bottomY - 2.5, 6], rotation: [rotX, 0, 0], friction: 0.1 }));
+  const [rightWall] = useBox(() => ({ type: 'Static', args: [0.5, 1.5, length], position: [1.25, bottomY - 2.5, 6], rotation: [rotX, 0, 0], friction: 0.1 }));
+
+  // Pedestal del ganador al final del tobogán
+  const [pedestalFloor] = useBox(() => ({ type: 'Static', args: [3, 0.5, 3], position: [0, bottomY - 7, 13], friction: 0.8, restitution: 0.1 }));
+  const [pedestalBack] = useBox(() => ({ type: 'Static', args: [3, 3, 0.5], position: [0, bottomY - 6, 14.5], friction: 0.1 }));
+  const [pedestalLeft] = useBox(() => ({ type: 'Static', args: [0.5, 3, 3], position: [-1.5, bottomY - 6, 13], friction: 0.1 }));
+  const [pedestalRight] = useBox(() => ({ type: 'Static', args: [0.5, 3, 3], position: [1.5, bottomY - 6, 13], friction: 0.1 }));
+
+  const glassMatProps = { transparent: true, opacity: 0.2, depthWrite: false, side: THREE.DoubleSide, color: "#ffffff" };
+  const wireMatProps = { color: "#d4af37", wireframe: true, transparent: true, opacity: 0.4 };
 
   return (
     <>
-      <mesh ref={leftRef}><boxGeometry args={[10, 0.5, 8]}/>{material}</mesh>
-      <mesh ref={rightRef}><boxGeometry args={[10, 0.5, 8]}/>{material}</mesh>
-      <mesh ref={cLeft}><boxGeometry args={[0.5, 8, 4]}/>{material}</mesh>
-      <mesh ref={cRight}><boxGeometry args={[0.5, 8, 4]}/>{material}</mesh>
-      <mesh ref={cFront}><boxGeometry args={[2.2, 8, 0.5]}/>{material}</mesh>
-      <mesh ref={cBack}><boxGeometry args={[2.2, 8, 0.5]}/>{material}</mesh>
+      <mesh ref={leftRef}><boxGeometry args={[10, 0.5, 10]}/><meshStandardMaterial {...glassMatProps}/><mesh><boxGeometry args={[10, 0.5, 10]}/><meshBasicMaterial {...wireMatProps} /></mesh></mesh>
+      <mesh ref={rightRef}><boxGeometry args={[10, 0.5, 10]}/><meshStandardMaterial {...glassMatProps}/><mesh><boxGeometry args={[10, 0.5, 10]}/><meshBasicMaterial {...wireMatProps} /></mesh></mesh>
+      <mesh ref={backRef}><boxGeometry args={[10, 0.5, 10]}/><meshStandardMaterial {...glassMatProps}/><mesh><boxGeometry args={[10, 0.5, 10]}/><meshBasicMaterial {...wireMatProps} /></mesh></mesh>
+      <mesh ref={frontRef}><boxGeometry args={[10, 0.5, 10]}/><meshStandardMaterial {...glassMatProps}/><mesh><boxGeometry args={[10, 0.5, 10]}/><meshBasicMaterial {...wireMatProps} /></mesh></mesh>
+      
+      <mesh ref={floorRef}><boxGeometry args={[2.5, 0.5, length]}/><meshStandardMaterial {...glassMatProps} color="#4ade80" opacity={0.1}/><mesh><boxGeometry args={[2.5, 0.5, length]}/><meshBasicMaterial {...wireMatProps} /></mesh></mesh>
+      <mesh ref={leftWall}><boxGeometry args={[0.5, 1.5, length]}/><meshStandardMaterial {...glassMatProps}/><mesh><boxGeometry args={[0.5, 1.5, length]}/><meshBasicMaterial {...wireMatProps} /></mesh></mesh>
+      <mesh ref={rightWall}><boxGeometry args={[0.5, 1.5, length]}/><meshStandardMaterial {...glassMatProps}/><mesh><boxGeometry args={[0.5, 1.5, length]}/><meshBasicMaterial {...wireMatProps} /></mesh></mesh>
+      
+      <mesh ref={pedestalFloor}><boxGeometry args={[3, 0.5, 3]}/><meshStandardMaterial color="#d4af37" metalness={0.8} roughness={0.2} /></mesh>
+      <mesh ref={pedestalBack}><boxGeometry args={[3, 3, 0.5]}/><meshStandardMaterial {...glassMatProps}/></mesh>
+      <mesh ref={pedestalLeft}><boxGeometry args={[0.5, 3, 3]}/><meshStandardMaterial {...glassMatProps}/></mesh>
+      <mesh ref={pedestalRight}><boxGeometry args={[0.5, 3, 3]}/><meshStandardMaterial {...glassMatProps}/></mesh>
     </>
   );
 }
@@ -119,15 +140,15 @@ function Ball({ num, index, onWin, winnerAnnounced }) {
   const [ref, api] = useSphere(() => ({
     mass: 1,
     args: [0.4],
-    position: [(Math.random() - 0.5) * 3, (Math.random() - 0.5) * 3, (Math.random() - 0.5) * 4],
+    position: [(Math.random() - 0.5) * 3, OFFSET_Y + (Math.random() - 0.5) * 3, (Math.random() - 0.5) * 4],
     restitution: 0.4,
     friction: 0.8,
   }));
 
   useEffect(() => {
     const unsub = api.position.subscribe(p => {
-      // Check if it fell down the chute
-      if (p[1] < -12 && !winnerAnnounced.current) {
+      // Check if it reached the pedestal (Z > 11 and Y < 0)
+      if (p[2] > 11 && p[1] < 0 && !winnerAnnounced.current) {
         winnerAnnounced.current = true;
         onWin(num);
       }
@@ -155,31 +176,29 @@ function Scene({ reservedNumbers, isDrawing, isSpinning, onWin }) {
 
   useFrame((state, delta) => {
     const speed = isSpinning && !isDrawing ? 6 : 1.5;
-    drumAngle.current += delta * speed; // Rotation speed
+    drumAngle.current += delta * speed;
   });
 
   return (
     <>
       <Environment preset="city" />
       <ambientLight intensity={0.5} />
-      <directionalLight position={[10, 10, 5]} intensity={1.5} castShadow />
+      <directionalLight position={[10, 20, 10]} intensity={1.5} castShadow />
 
       <Physics gravity={[0, -15, 0]}>
-        {/* Drum Panels */}
         {Array.from({ length: 8 }).map((_, i) => (
           <DrumPanel key={i} index={i} isDoor={i === 0} isDrawing={isDrawing} drumAngle={drumAngle} />
         ))}
         <DrumCaps drumAngle={drumAngle} />
 
-        <Funnel />
+        <FunnelAndSlide />
 
-        {/* Balls */}
         {reservedNumbers.map((num, i) => (
           <Ball key={num} num={num} index={i} onWin={onWin} winnerAnnounced={winnerAnnounced} />
         ))}
       </Physics>
 
-      <ContactShadows position={[0, -14, 0]} opacity={0.5} scale={20} blur={2} far={15} />
+      <ContactShadows position={[0, -5, 10]} opacity={0.6} scale={30} blur={2} far={15} />
     </>
   );
 }
@@ -196,7 +215,6 @@ export default function Tombola() {
       const data = await res.json();
       const numbers = Object.keys(data).map(Number).filter(n => data[n].reserved);
       
-      // Inject fake 101-200
       for (let i = 101; i <= 200; i++) {
         numbers.push(i);
       }
@@ -210,14 +228,13 @@ export default function Tombola() {
     confetti({
       particleCount: 200,
       spread: 90,
-      origin: { y: 0.6 },
+      origin: { y: 0.7 }, // Confetti slightly lower since camera is high
       colors: ['#d4af37', '#aa8c2c', '#f3e3a9', '#ffffff']
     });
   };
 
   const handleDraw = () => {
     setIsSpinning(true);
-    // 1. Give it 3 seconds of high speed spinning before opening the door
     setTimeout(() => {
       setIsDrawing(true);
     }, 4000);
@@ -231,9 +248,9 @@ export default function Tombola() {
         <p style={{ color: 'var(--color-gold)', margin: 0 }}>{reservedNumbers.length} Boletos Participando</p>
       </div>
 
-      <Canvas shadows camera={{ position: [0, 2, 16], fov: 45 }}>
+      <Canvas shadows camera={{ position: [0, 8, 30], fov: 45 }}>
         <Scene reservedNumbers={reservedNumbers} isDrawing={isDrawing} isSpinning={isSpinning} onWin={triggerWin} />
-        <OrbitControls enableZoom={true} enablePan={false} maxPolarAngle={Math.PI / 2 + 0.1} />
+        <OrbitControls enableZoom={true} enablePan={false} maxPolarAngle={Math.PI / 2 + 0.1} target={[0, 2, 5]} />
       </Canvas>
 
       {!isSpinning && !winner && reservedNumbers.length > 0 && (
@@ -255,7 +272,7 @@ export default function Tombola() {
       {winner && (
         <div style={{
           position: 'absolute',
-          top: '50%',
+          top: '40%',
           left: '50%',
           transform: 'translate(-50%, -50%)',
           background: 'rgba(20, 28, 20, 0.95)',
