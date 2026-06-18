@@ -50,6 +50,13 @@ function Ball({ num, material, apiRef, onWin }) {
 function EpicMachine({ isSpinning }) {
   const drumRef = useRef();
 
+  const getIndex = (geo) => {
+    if (geo.index) return geo.index.array;
+    const arr = new Uint16Array(geo.attributes.position.count);
+    for (let i = 0; i < arr.length; i++) arr[i] = i;
+    return arr;
+  };
+
   useFrame(() => {
     if (isSpinning && drumRef.current) {
       drumRef.current.rotation.x += 0.05;
@@ -61,7 +68,7 @@ function EpicMachine({ isSpinning }) {
     const geo = new THREE.IcosahedronGeometry(6, 1);
     // Remove bottom faces to create a massive hole for balls to fall out
     const positions = geo.attributes.position;
-    const indices = geo.index.array;
+    const indices = getIndex(geo);
     const newIndices = [];
     for (let i = 0; i < indices.length; i += 3) {
       const a = indices[i];
@@ -81,7 +88,7 @@ function EpicMachine({ isSpinning }) {
 
   const [physicsDrumRef, api] = useTrimesh(() => ({
     type: 'Kinematic',
-    args: [drumGeo.attributes.position.array, drumGeo.index.array],
+    args: [drumGeo.attributes.position.array, getIndex(drumGeo)],
     position: [0, OFFSET_Y, 0],
     friction: 0.1,
     restitution: 0.5
@@ -107,7 +114,7 @@ function EpicMachine({ isSpinning }) {
 
   const [mainFunnelRef] = useTrimesh(() => ({
     type: 'Static',
-    args: [mainFunnelGeo.attributes.position.array, mainFunnelGeo.index.array],
+    args: [mainFunnelGeo.attributes.position.array, getIndex(mainFunnelGeo)],
     position: [0, 0, 0],
     friction: 0.1,
     restitution: 0.2
@@ -126,9 +133,9 @@ function EpicMachine({ isSpinning }) {
   const subPosRight = [1.5, 0, 1];
   const subPosCenter = [0, 0, -1.5];
 
-  const [subRefL] = useTrimesh(() => ({ type: 'Static', args: [subFunnelGeo.attributes.position.array, subFunnelGeo.index.array], position: subPosLeft, friction: 0.1 }));
-  const [subRefR] = useTrimesh(() => ({ type: 'Static', args: [subFunnelGeo.attributes.position.array, subFunnelGeo.index.array], position: subPosRight, friction: 0.1 }));
-  const [subRefC] = useTrimesh(() => ({ type: 'Static', args: [subFunnelGeo.attributes.position.array, subFunnelGeo.index.array], position: subPosCenter, friction: 0.1 }));
+  const [subRefL] = useTrimesh(() => ({ type: 'Static', args: [subFunnelGeo.attributes.position.array, getIndex(subFunnelGeo)], position: subPosLeft, friction: 0.1 }));
+  const [subRefR] = useTrimesh(() => ({ type: 'Static', args: [subFunnelGeo.attributes.position.array, getIndex(subFunnelGeo)], position: subPosRight, friction: 0.1 }));
+  const [subRefC] = useTrimesh(() => ({ type: 'Static', args: [subFunnelGeo.attributes.position.array, getIndex(subFunnelGeo)], position: subPosCenter, friction: 0.1 }));
 
   // 3. Three Epic Tubes (Massive Spirals and Loops, perfectly isolated)
   const tubeGeo1 = useMemo(() => {
@@ -202,9 +209,9 @@ function EpicMachine({ isSpinning }) {
     return geo;
   }, []);
 
-  const [tubeRef1] = useTrimesh(() => ({ type: 'Static', args: [tubeGeo1.attributes.position.array, tubeGeo1.index.array], position: [0,0,0], friction: 0.05, restitution: 0.2 }));
-  const [tubeRef2] = useTrimesh(() => ({ type: 'Static', args: [tubeGeo2.attributes.position.array, tubeGeo2.index.array], position: [0,0,0], friction: 0.05, restitution: 0.2 }));
-  const [tubeRef3] = useTrimesh(() => ({ type: 'Static', args: [tubeGeo3.attributes.position.array, tubeGeo3.index.array], position: [0,0,0], friction: 0.05, restitution: 0.2 }));
+  const [tubeRef1] = useTrimesh(() => ({ type: 'Static', args: [tubeGeo1.attributes.position.array, getIndex(tubeGeo1)], position: [0,0,0], friction: 0.05, restitution: 0.2 }));
+  const [tubeRef2] = useTrimesh(() => ({ type: 'Static', args: [tubeGeo2.attributes.position.array, getIndex(tubeGeo2)], position: [0,0,0], friction: 0.05, restitution: 0.2 }));
+  const [tubeRef3] = useTrimesh(() => ({ type: 'Static', args: [tubeGeo3.attributes.position.array, getIndex(tubeGeo3)], position: [0,0,0], friction: 0.05, restitution: 0.2 }));
 
   // 4. Grand Basket (Massive Conical Bowl)
   const basketWallsGeo = useMemo(() => {
@@ -219,7 +226,7 @@ function EpicMachine({ isSpinning }) {
     return new THREE.CylinderGeometry(8, 8, 0.5, 64, 1, false);
   }, []);
 
-  const [basketWallsRef] = useTrimesh(() => ({ type: 'Static', args: [basketWallsGeo.attributes.position.array, basketWallsGeo.index.array], position: [0, -4, 28], friction: 0.1 }));
+  const [basketWallsRef] = useTrimesh(() => ({ type: 'Static', args: [basketWallsGeo.attributes.position.array, getIndex(basketWallsGeo)], position: [0, -4, 28], friction: 0.1 }));
   const [basketFloorRef] = useCylinder(() => ({ type: 'Static', args: [8, 8, 0.5, 64], position: [0, -8.25, 28], friction: 0.8, restitution: 0.2 }));
 
   return (
