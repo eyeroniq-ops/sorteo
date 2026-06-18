@@ -86,6 +86,7 @@ function FunnelAndPipe() {
   const funnelGeo = useMemo(() => {
     // Top radius 5, bottom radius 1.4, height 4, 32 segments, open ended
     const geo = new THREE.CylinderGeometry(5, 1.4, 4, 32, 1, true);
+    geo.translate(0, 4, 0); // Centro en Y=4 (Top=6, Bottom=2)
     geo.scale(-1, 1, 1); // Flip normals for internal physics collisions
     return geo;
   }, []);
@@ -93,17 +94,23 @@ function FunnelAndPipe() {
   const [funnelRef] = useTrimesh(() => ({
     type: 'Static',
     args: [funnelGeo.attributes.position.array, funnelGeo.index.array],
-    position: [0, 4, 0], // Center Y=4 (Top=6, Bottom=2)
-    friction: 0.2,
+    position: [0, 0, 0], // Geometría ya está trasladada
+    friction: 0.1,
     restitution: 0.2
   }));
 
-  const pipeLength = 15;
-  const pipeRotX = Math.atan2(7, 12); // Pitch downwards from Y=2 to Y=-5 (drop of 7) over Z=12
-
   const pipeGeo = useMemo(() => {
-    // Round pipe: radius 1.4
-    const geo = new THREE.CylinderGeometry(1.4, 1.4, pipeLength, 32, 1, true);
+    // Curva tipo "tubo de hamster"
+    const curve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(0, 2, 0),       // 1. Conectado exactamente al fondo del embudo
+      new THREE.Vector3(0, 0, 0),       // 2. Baja un poco recto
+      new THREE.Vector3(-4, -2, 3),     // 3. Curva a la izquierda
+      new THREE.Vector3(4, -4, 7),      // 4. Curva a la derecha
+      new THREE.Vector3(0, -5.5, 10),   // 5. Vuelve al centro
+      new THREE.Vector3(0, -5.5, 12),   // 6. Termina recto apuntando al pedestal
+    ]);
+    
+    const geo = new THREE.TubeGeometry(curve, 128, 1.4, 16, false);
     geo.scale(-1, 1, 1); // Flip normals
     return geo;
   }, []);
@@ -111,21 +118,21 @@ function FunnelAndPipe() {
   const [pipeRef] = useTrimesh(() => ({
     type: 'Static',
     args: [pipeGeo.attributes.position.array, pipeGeo.index.array],
-    position: [0, -1.5, 6], // Midpoint of the pipe
-    rotation: [pipeRotX, 0, 0],
-    friction: 0.2,
+    position: [0, 0, 0],
+    friction: 0.1,
     restitution: 0.1
   }));
 
-  // Backup floor to prevent balls falling out of the world if they clip the Trimesh at high speed
-  useBox(() => ({ type: 'Static', args: [6, 1, pipeLength + 4], position: [0, -3.5, 6], rotation: [pipeRotX, 0, 0] }));
-
-  // Pedestal del ganador
-  const [pedestalFloor] = useBox(() => ({ type: 'Static', args: [3, 0.5, 3], position: [0, -6.5, 13], friction: 0.8, restitution: 0.1 }));
-  const [pedestalBack] = useBox(() => ({ type: 'Static', args: [3, 3, 0.5], position: [0, -5, 14.5], friction: 0.1 }));
-  const [pedestalLeft] = useBox(() => ({ type: 'Static', args: [0.5, 3, 3], position: [-1.5, -5, 13], friction: 0.1 }));
-  const [pedestalRight] = useBox(() => ({ type: 'Static', args: [0.5, 3, 3], position: [1.5, -5, 13], friction: 0.1 }));
-  const [pedestalFront] = useBox(() => ({ type: 'Static', args: [3, 1.5, 0.5], position: [0, -5.75, 11.5], friction: 0.1 })); // stop rollback
+  // Pedestal del ganador al final del tubo (Z=12)
+  // El tubo termina en Y = -5.5, con radio 1.4, el fondo interior del tubo es Y = -6.9
+  // Ponemos el piso del pedestal en Y = -6.8 para una transición suave.
+  const [pedestalFloor] = useBox(() => ({ type: 'Static', args: [4, 0.5, 4], position: [0, -7.05, 14], friction: 0.8, restitution: 0.1 }));
+  const [pedestalBack] = useBox(() => ({ type: 'Static', args: [4, 3, 0.5], position: [0, -5.3, 16], friction: 0.1 }));
+  const [pedestalLeft] = useBox(() => ({ type: 'Static', args: [0.5, 3, 4], position: [-2.25, -5.3, 14], friction: 0.1 }));
+  const [pedestalRight] = useBox(() => ({ type: 'Static', args: [0.5, 3, 4], position: [2.25, -5.3, 14], friction: 0.1 }));
+  
+  // Pequeño borde frontal debajo del tubo para evitar que la bola ruede hacia atrás
+  const [pedestalFront] = useBox(() => ({ type: 'Static', args: [4, 1, 0.5], position: [0, -6.8, 12], friction: 0.1 }));
 
   const glassMatProps = { transparent: true, opacity: 0.25, depthWrite: false, side: THREE.DoubleSide, color: "#ffffff" };
   const wireMatProps = { color: "#d4af37", wireframe: true, transparent: true, opacity: 0.15 };
@@ -142,11 +149,11 @@ function FunnelAndPipe() {
         <mesh geometry={pipeGeo}><meshBasicMaterial {...wireMatProps} /></mesh>
       </mesh>
       
-      <mesh ref={pedestalFloor}><boxGeometry args={[3, 0.5, 3]}/><meshStandardMaterial color="#d4af37" metalness={0.8} roughness={0.2} /></mesh>
-      <mesh ref={pedestalBack}><boxGeometry args={[3, 3, 0.5]}/><meshStandardMaterial {...glassMatProps}/></mesh>
-      <mesh ref={pedestalLeft}><boxGeometry args={[0.5, 3, 3]}/><meshStandardMaterial {...glassMatProps}/></mesh>
-      <mesh ref={pedestalRight}><boxGeometry args={[0.5, 3, 3]}/><meshStandardMaterial {...glassMatProps}/></mesh>
-      <mesh ref={pedestalFront}><boxGeometry args={[3, 1.5, 0.5]}/><meshStandardMaterial {...glassMatProps}/></mesh>
+      <mesh ref={pedestalFloor}><boxGeometry args={[4, 0.5, 4]}/><meshStandardMaterial color="#d4af37" metalness={0.8} roughness={0.2} /></mesh>
+      <mesh ref={pedestalBack}><boxGeometry args={[4, 3, 0.5]}/><meshStandardMaterial {...glassMatProps}/></mesh>
+      <mesh ref={pedestalLeft}><boxGeometry args={[0.5, 3, 4]}/><meshStandardMaterial {...glassMatProps}/></mesh>
+      <mesh ref={pedestalRight}><boxGeometry args={[0.5, 3, 4]}/><meshStandardMaterial {...glassMatProps}/></mesh>
+      <mesh ref={pedestalFront}><boxGeometry args={[4, 1, 0.5]}/><meshStandardMaterial {...glassMatProps}/></mesh>
     </>
   );
 }
