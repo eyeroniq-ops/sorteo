@@ -84,8 +84,8 @@ function DrumCaps({ drumAngle }) {
 
 function FunnelAndPipe() {
   const funnelGeo = useMemo(() => {
-    // Top radius 5, bottom radius 1.4, height 4, 32 segments, open ended
-    const geo = new THREE.CylinderGeometry(5, 1.4, 4, 32, 1, true);
+    // Top radius 5, bottom radius 0.8 (matches tube), height 4, 32 segments, open ended
+    const geo = new THREE.CylinderGeometry(5, 0.8, 4, 32, 1, true);
     geo.translate(0, 4, 0); // Centro en Y=4 (Top=6, Bottom=2)
     geo.scale(-1, 1, 1); // Flip normals for internal physics collisions
     return geo;
@@ -100,17 +100,22 @@ function FunnelAndPipe() {
   }));
 
   const pipeGeo = useMemo(() => {
-    // Curva tipo "tubo de hamster"
+    // Curva larga y divertida de "montaña rusa"
     const curve = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(0, 2, 0),       // 1. Conectado exactamente al fondo del embudo
-      new THREE.Vector3(0, 0, 0),       // 2. Baja un poco recto
-      new THREE.Vector3(-4, -2, 3),     // 3. Curva a la izquierda
-      new THREE.Vector3(4, -4, 7),      // 4. Curva a la derecha
-      new THREE.Vector3(0, -5.5, 10),   // 5. Vuelve al centro
-      new THREE.Vector3(0, -5.5, 12),   // 6. Termina recto apuntando al pedestal
+      new THREE.Vector3(0, 2, 0),        // 1. Conectado exactamente al fondo del embudo
+      new THREE.Vector3(0, 0.5, 0),      // 2. Baja recto para ganar velocidad
+      new THREE.Vector3(-4, -0.5, 3),    // 3. Espiral hacia la izquierda
+      new THREE.Vector3(0, -1.5, 6),     // 4. Frente
+      new THREE.Vector3(4, -2.5, 3),     // 5. Derecha y hacia atrás (loop)
+      new THREE.Vector3(0, -3.5, 0),     // 6. Directo bajo el embudo
+      new THREE.Vector3(-5, -4.5, 5),    // 7. Barrido amplio a la izquierda
+      new THREE.Vector3(0, -5.5, 10),    // 8. Centro
+      new THREE.Vector3(5, -6.5, 14),    // 9. Barrido a la derecha
+      new THREE.Vector3(0, -7.5, 17),    // 10. De vuelta al centro
+      new THREE.Vector3(0, -7.5, 18),    // 11. Termina recto en el pedestal
     ]);
     
-    const geo = new THREE.TubeGeometry(curve, 128, 1.4, 16, false);
+    const geo = new THREE.TubeGeometry(curve, 200, 0.8, 16, false); // Radio más delgado: 0.8
     geo.scale(-1, 1, 1); // Flip normals
     return geo;
   }, []);
@@ -123,16 +128,16 @@ function FunnelAndPipe() {
     restitution: 0.1
   }));
 
-  // Pedestal del ganador al final del tubo (Z=12)
-  // El tubo termina en Y = -5.5, con radio 1.4, el fondo interior del tubo es Y = -6.9
-  // Ponemos el piso del pedestal en Y = -6.8 para una transición suave.
-  const [pedestalFloor] = useBox(() => ({ type: 'Static', args: [4, 0.5, 4], position: [0, -7.05, 14], friction: 0.8, restitution: 0.1 }));
-  const [pedestalBack] = useBox(() => ({ type: 'Static', args: [4, 3, 0.5], position: [0, -5.3, 16], friction: 0.1 }));
-  const [pedestalLeft] = useBox(() => ({ type: 'Static', args: [0.5, 3, 4], position: [-2.25, -5.3, 14], friction: 0.1 }));
-  const [pedestalRight] = useBox(() => ({ type: 'Static', args: [0.5, 3, 4], position: [2.25, -5.3, 14], friction: 0.1 }));
+  // Pedestal del ganador al final del tubo (Z=18)
+  // El tubo termina en Y = -7.5, radio 0.8, por lo que el fondo interior es Y = -8.3
+  // Ponemos el piso del pedestal en Y = -8.55 (con grosor 0.5, la superficie queda exactamente en -8.3)
+  const [pedestalFloor] = useBox(() => ({ type: 'Static', args: [4, 0.5, 5], position: [0, -8.55, 19.5], friction: 0.8, restitution: 0.1 }));
+  const [pedestalBack] = useBox(() => ({ type: 'Static', args: [4, 3, 0.5], position: [0, -6.8, 22], friction: 0.1 }));
+  const [pedestalLeft] = useBox(() => ({ type: 'Static', args: [0.5, 3, 5], position: [-2.25, -6.8, 19.5], friction: 0.1 }));
+  const [pedestalRight] = useBox(() => ({ type: 'Static', args: [0.5, 3, 5], position: [2.25, -6.8, 19.5], friction: 0.1 }));
   
-  // Pequeño borde frontal debajo del tubo para evitar que la bola ruede hacia atrás
-  const [pedestalFront] = useBox(() => ({ type: 'Static', args: [4, 1, 0.5], position: [0, -6.8, 12], friction: 0.1 }));
+  // Borde frontal detrás de la salida del tubo para evitar que la bola ruede hacia atrás (Z=17 está detrás de Z=18)
+  const [pedestalFront] = useBox(() => ({ type: 'Static', args: [4, 1, 0.5], position: [0, -8.3, 17], friction: 0.1 }));
 
   const glassMatProps = { transparent: true, opacity: 0.25, depthWrite: false, side: THREE.DoubleSide, color: "#ffffff" };
   const wireMatProps = { color: "#d4af37", wireframe: true, transparent: true, opacity: 0.15 };
@@ -149,10 +154,10 @@ function FunnelAndPipe() {
         <mesh geometry={pipeGeo}><meshBasicMaterial {...wireMatProps} /></mesh>
       </mesh>
       
-      <mesh ref={pedestalFloor}><boxGeometry args={[4, 0.5, 4]}/><meshStandardMaterial color="#d4af37" metalness={0.8} roughness={0.2} /></mesh>
+      <mesh ref={pedestalFloor}><boxGeometry args={[4, 0.5, 5]}/><meshStandardMaterial color="#d4af37" metalness={0.8} roughness={0.2} /></mesh>
       <mesh ref={pedestalBack}><boxGeometry args={[4, 3, 0.5]}/><meshStandardMaterial {...glassMatProps}/></mesh>
-      <mesh ref={pedestalLeft}><boxGeometry args={[0.5, 3, 4]}/><meshStandardMaterial {...glassMatProps}/></mesh>
-      <mesh ref={pedestalRight}><boxGeometry args={[0.5, 3, 4]}/><meshStandardMaterial {...glassMatProps}/></mesh>
+      <mesh ref={pedestalLeft}><boxGeometry args={[0.5, 3, 5]}/><meshStandardMaterial {...glassMatProps}/></mesh>
+      <mesh ref={pedestalRight}><boxGeometry args={[0.5, 3, 5]}/><meshStandardMaterial {...glassMatProps}/></mesh>
       <mesh ref={pedestalFront}><boxGeometry args={[4, 1, 0.5]}/><meshStandardMaterial {...glassMatProps}/></mesh>
     </>
   );
@@ -169,8 +174,8 @@ function Ball({ num, index, onWin, winnerAnnounced }) {
 
   useEffect(() => {
     const unsub = api.position.subscribe(p => {
-      // Pedestal target is Z ~ 13, Y ~ -6. 
-      if (p[2] > 12.2 && p[1] < -4 && !winnerAnnounced.current) {
+      // Pedestal target is Z ~ 19, Y ~ -8.3. 
+      if (p[2] > 17.5 && p[1] < -7.5 && !winnerAnnounced.current) {
         winnerAnnounced.current = true;
         onWin(num);
       }
@@ -220,7 +225,7 @@ function Scene({ reservedNumbers, isDrawing, isSpinning, onWin }) {
         ))}
       </Physics>
 
-      <ContactShadows position={[0, -7, 10]} opacity={0.6} scale={30} blur={2} far={15} />
+      <ContactShadows position={[0, -8.5, 10]} opacity={0.6} scale={30} blur={2} far={15} />
     </>
   );
 }
