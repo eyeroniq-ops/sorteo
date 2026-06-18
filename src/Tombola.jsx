@@ -2,91 +2,97 @@ import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Physics, useBox, useCylinder, useSphere, useTrimesh } from '@react-three/cannon';
 import { Environment, Text, ContactShadows, OrbitControls } from '@react-three/drei';
-import confetti from 'canvas-confetti';
-import { Link } from 'react-router-dom';
 import * as THREE from 'three';
+import confetti from 'canvas-confetti';
 
-const R = 4;
-const w = 2 * R * Math.tan(Math.PI / 8) + 0.2;
-const t = 0.2;
-const L = 6;
-const OFFSET_Y = 8; // Tombola original height
+const BOLETOS = Array.from({ length: 100 }, (_, i) => i + 1);
+const OFFSET_Y = 12;
 
-function DrumPanel({ index, isDoor, isDrawing, drumAngle }) {
-  const initAngle = (index / 8) * Math.PI * 2;
-  const initX = Math.cos(initAngle) * R;
-  const initY = Math.sin(initAngle) * R;
-  const initRotZ = initAngle + Math.PI / 2;
-
-  const [ref, api] = useBox(() => ({ 
-    type: 'Kinematic', 
-    args: [w, t, L],
-    position: [initX, initY + OFFSET_Y, 0],
-    rotation: [0, 0, initRotZ],
-    collisionFilterGroup: 1,
-    collisionFilterMask: 1,
+function Ball({ num, material, apiRef, onWin }) {
+  const winnerAnnounced = useRef(false);
+  const [ref, api] = useSphere(() => ({
+    mass: 1,
+    args: [0.4],
+    position: [(Math.random() - 0.5) * 3, OFFSET_Y + (Math.random() - 0.5) * 3, (Math.random() - 0.5) * 4],
+    restitution: 0.4,
     friction: 0.8,
-    restitution: 0.2
   }));
 
-  useFrame(() => {
-    if (isDoor && isDrawing) {
-      api.position.set(0, 1000, 0);
-      return;
-    }
-    const currentAngle = drumAngle.current + initAngle;
-    const x = Math.cos(currentAngle) * R;
-    const y = Math.sin(currentAngle) * R;
-    api.position.set(x, y + OFFSET_Y, 0);
-    api.rotation.set(0, 0, currentAngle + Math.PI / 2);
-  });
+  useEffect(() => {
+    if (apiRef) apiRef.current = api;
+  }, [api, apiRef]);
 
-  if (isDoor && isDrawing) return null;
+  useEffect(() => {
+    const unsub = api.position.subscribe(p => {
+      // Grand Basket floor top is at Y = -8.0. Trigger win if ball rests on the floor (Y < -7.0).
+      if (p[2] > 20 && p[1] < -7.0 && !winnerAnnounced.current) {
+        winnerAnnounced.current = true;
+        onWin(num);
+      }
+    });
+    return () => unsub();
+  }, [api.position, onWin, num]);
 
   return (
-    <mesh ref={ref}>
-      <boxGeometry args={[w, t, L]} />
-      <meshStandardMaterial color="#ffffff" transparent opacity={0.15} depthWrite={false} side={THREE.DoubleSide} />
-      <mesh><boxGeometry args={[w, t, L]} /><meshBasicMaterial color="#d4af37" wireframe={true} transparent opacity={0.3} /></mesh>
+    <mesh ref={ref} castShadow receiveShadow>
+      <sphereGeometry args={[0.4, 32, 32]} />
+      <meshStandardMaterial {...material} />
+      <Text position={[0, 0, 0.41]} fontSize={0.3} color="black" anchorX="center" anchorY="middle">
+        {num}
+      </Text>
+      <Text position={[0, 0, -0.41]} rotation={[0, Math.PI, 0]} fontSize={0.3} color="black" anchorX="center" anchorY="middle">
+        {num}
+      </Text>
     </mesh>
   );
 }
 
-function DrumCaps({ drumAngle }) {
-  const initFrontZ = L / 2;
-  const initBackZ = -L / 2;
-
-  const [frontRef, frontApi] = useCylinder(() => ({ type: 'Kinematic', args: [R, R, 0.2, 8], position: [0, OFFSET_Y, initFrontZ], rotation: [Math.PI/2, 0, 0], friction: 0.8, restitution: 0.2 }));
-  const [backRef, backApi] = useCylinder(() => ({ type: 'Kinematic', args: [R, R, 0.2, 8], position: [0, OFFSET_Y, initBackZ], rotation: [Math.PI/2, 0, 0], friction: 0.8, restitution: 0.2 }));
+function EpicMachine({ isSpinning }) {
+  const drumRef = useRef();
 
   useFrame(() => {
-    frontApi.rotation.set(Math.PI/2, drumAngle.current - Math.PI/8, 0);
-    backApi.rotation.set(Math.PI/2, drumAngle.current - Math.PI/8, 0);
+    if (isSpinning && drumRef.current) {
+      drumRef.current.rotation.x += 0.05;
+      drumRef.current.rotation.y += 0.02;
+    }
   });
 
-  const materialProps = { color: "#ffffff", transparent: true, opacity: 0.15, depthWrite: false, side: THREE.DoubleSide };
-  
-  return (
-    <>
-      <mesh ref={frontRef}>
-        <cylinderGeometry args={[R, R, 0.2, 8]} />
-        <meshStandardMaterial {...materialProps} />
-        <mesh><cylinderGeometry args={[R, R, 0.2, 8]} /><meshBasicMaterial color="#d4af37" wireframe={true} transparent opacity={0.4} /></mesh>
-      </mesh>
-      <mesh ref={backRef}>
-        <cylinderGeometry args={[R, R, 0.2, 8]} />
-        <meshStandardMaterial {...materialProps} />
-        <mesh><cylinderGeometry args={[R, R, 0.2, 8]} /><meshBasicMaterial color="#d4af37" wireframe={true} transparent opacity={0.4} /></mesh>
-      </mesh>
-    </>
-  );
-}
+  const drumGeo = useMemo(() => {
+    const geo = new THREE.IcosahedronGeometry(6, 1);
+    // Remove bottom faces to create a massive hole for balls to fall out
+    const positions = geo.attributes.position;
+    const indices = geo.index.array;
+    const newIndices = [];
+    for (let i = 0; i < indices.length; i += 3) {
+      const a = indices[i];
+      const b = indices[i + 1];
+      const c = indices[i + 2];
+      const yA = positions.getY(a);
+      const yB = positions.getY(b);
+      const yC = positions.getY(c);
+      if (yA > -4 && yB > -4 && yC > -4) {
+        newIndices.push(a, b, c);
+      }
+    }
+    geo.setIndex(newIndices);
+    geo.scale(-1, 1, 1);
+    return geo;
+  }, []);
 
-// --------------------------------------------------------
-// EPIC MACHINE: Funnels and 3 Tubes
-// --------------------------------------------------------
+  const [physicsDrumRef, api] = useTrimesh(() => ({
+    type: 'Kinematic',
+    args: [drumGeo.attributes.position.array, drumGeo.index.array],
+    position: [0, OFFSET_Y, 0],
+    friction: 0.1,
+    restitution: 0.5
+  }));
 
-function EpicMachine() {
+  useFrame(() => {
+    if (isSpinning && drumRef.current) {
+      api.rotation.set(drumRef.current.rotation.x, drumRef.current.rotation.y, drumRef.current.rotation.z);
+    }
+  });
+
   const glassMatProps = { transparent: true, opacity: 0.25, depthWrite: false, side: THREE.DoubleSide, color: "#ffffff" };
   const wireMatProps = { color: "#d4af37", wireframe: true, transparent: true, opacity: 0.15 };
 
@@ -124,24 +130,26 @@ function EpicMachine() {
   const [subRefR] = useTrimesh(() => ({ type: 'Static', args: [subFunnelGeo.attributes.position.array, subFunnelGeo.index.array], position: subPosRight, friction: 0.1 }));
   const [subRefC] = useTrimesh(() => ({ type: 'Static', args: [subFunnelGeo.attributes.position.array, subFunnelGeo.index.array], position: subPosCenter, friction: 0.1 }));
 
-  // 3. Three Epic Tubes (Massive Spirals and Loops, strictly isolated to prevent visual/physics bugs)
+  // 3. Three Epic Tubes (Massive Spirals and Loops, perfectly isolated)
   const tubeGeo1 = useMemo(() => {
-    // Curve 1: Double Spiral (Strictly Left side, X from -1.5 down to -9)
+    // Curve 1: Double Spiral (Strictly Left side X <= -4)
     const curve = new THREE.CatmullRomCurve3([
       new THREE.Vector3(-1.5, 0, 1),
-      new THREE.Vector3(-1.5, -1, 1),
-      new THREE.Vector3(-2, -1.5, 5),
-      new THREE.Vector3(-3, -2.0, 9), // Enter Spiral (Center X=-6, Z=9, R=3)
-      new THREE.Vector3(-6, -2.4, 12),
-      new THREE.Vector3(-9, -2.8, 9),
-      new THREE.Vector3(-6, -3.2, 6),
-      new THREE.Vector3(-3, -3.6, 9),
-      new THREE.Vector3(-6, -4.0, 12),
-      new THREE.Vector3(-9, -4.4, 9),
-      new THREE.Vector3(-6, -4.8, 6),
-      new THREE.Vector3(-3, -5.2, 9), // Exit Spiral
-      new THREE.Vector3(-4, -5.6, 18),
-      new THREE.Vector3(-3, -6.0, 28) // Drop
+      new THREE.Vector3(-1.5, -1, 1), // Straight drop for speed
+      new THREE.Vector3(-4, -2.0, 9), // Enter Spiral (Center X=-8, Z=9, R=4)
+      // Loop 1
+      new THREE.Vector3(-8, -2.4, 13),
+      new THREE.Vector3(-12, -2.8, 9),
+      new THREE.Vector3(-8, -3.2, 5),
+      new THREE.Vector3(-4, -3.6, 9),
+      // Loop 2
+      new THREE.Vector3(-8, -4.0, 13),
+      new THREE.Vector3(-12, -4.4, 9),
+      new THREE.Vector3(-8, -4.8, 5),
+      new THREE.Vector3(-4, -5.2, 9),
+      // Exit
+      new THREE.Vector3(-6, -5.6, 18),
+      new THREE.Vector3(-4, -6.0, 28) // Drop into basket
     ]);
     const geo = new THREE.TubeGeometry(curve, 300, 0.8, 16, false);
     geo.scale(-1, 1, 1);
@@ -149,21 +157,24 @@ function EpicMachine() {
   }, []);
 
   const tubeGeo2 = useMemo(() => {
-    // Curve 2: Figure-8 (Strictly Right side, X from 1.5 up to 9)
+    // Curve 2: Figure-8 (Strictly Right side X >= 4)
     const curve = new THREE.CatmullRomCurve3([
       new THREE.Vector3(1.5, 0, 1),
-      new THREE.Vector3(1.5, -1, 1),
-      new THREE.Vector3(2, -1.5, 4),
-      new THREE.Vector3(3, -2.0, 8), // Enter Top Loop (Center X=6, Z=8, R=3)
-      new THREE.Vector3(6, -2.4, 5),
-      new THREE.Vector3(9, -2.8, 8),
-      new THREE.Vector3(6, -3.2, 11),
-      new THREE.Vector3(3, -3.6, 18), // Enter Bottom Loop (Center X=6, Z=18, R=3)
-      new THREE.Vector3(6, -4.0, 21),
-      new THREE.Vector3(9, -4.4, 18),
-      new THREE.Vector3(6, -4.8, 15),
-      new THREE.Vector3(4, -5.2, 22), // Exit
-      new THREE.Vector3(3, -6.0, 28) // Drop
+      new THREE.Vector3(1.5, -1, 1), // Straight drop for speed
+      new THREE.Vector3(4, -2.0, 9), // Enter Top Loop (Center X=8, Z=9, R=4)
+      // Top Loop
+      new THREE.Vector3(8, -2.4, 5),
+      new THREE.Vector3(12, -2.8, 9),
+      new THREE.Vector3(8, -3.2, 13),
+      // Crossover to Bottom Loop (Center X=8, Z=19, R=4)
+      new THREE.Vector3(4, -3.6, 19),
+      // Bottom Loop
+      new THREE.Vector3(8, -4.0, 23),
+      new THREE.Vector3(12, -4.4, 19),
+      new THREE.Vector3(8, -4.8, 15),
+      // Exit
+      new THREE.Vector3(6, -5.2, 21),
+      new THREE.Vector3(4, -6.0, 28) // Drop into basket
     ]);
     const geo = new THREE.TubeGeometry(curve, 300, 0.8, 16, false);
     geo.scale(-1, 1, 1);
@@ -171,19 +182,20 @@ function EpicMachine() {
   }, []);
 
   const tubeGeo3 = useMemo(() => {
-    // Curve 3: Mega Slalom! (Strictly Center, X between -1 and 1)
+    // Curve 3: Mega Slalom! (Strictly Center -2 <= X <= 2)
     const curve = new THREE.CatmullRomCurve3([
       new THREE.Vector3(0, 0, -1.5),
-      new THREE.Vector3(0, -1, -1.5),
+      new THREE.Vector3(0, -1, -1.5), // Straight drop for speed
       new THREE.Vector3(0, -1.5, 3),
-      new THREE.Vector3(-1, -2.0, 6),
-      new THREE.Vector3(1, -2.5, 10),
-      new THREE.Vector3(-1, -3.0, 14),
-      new THREE.Vector3(1, -3.5, 18),
-      new THREE.Vector3(-1, -4.0, 22),
-      new THREE.Vector3(1, -4.5, 25),
-      new THREE.Vector3(0, -5.0, 27),
-      new THREE.Vector3(0, -6.0, 28) // Drop
+      new THREE.Vector3(-2, -2.0, 6),
+      new THREE.Vector3(0, -2.5, 9),
+      new THREE.Vector3(2, -3.0, 12),
+      new THREE.Vector3(0, -3.5, 15),
+      new THREE.Vector3(-2, -4.0, 18),
+      new THREE.Vector3(0, -4.5, 21),
+      new THREE.Vector3(2, -5.0, 24),
+      new THREE.Vector3(0, -5.5, 26),
+      new THREE.Vector3(0, -6.0, 28) // Drop into basket
     ]);
     const geo = new THREE.TubeGeometry(curve, 300, 0.8, 16, false);
     geo.scale(-1, 1, 1);
@@ -194,164 +206,178 @@ function EpicMachine() {
   const [tubeRef2] = useTrimesh(() => ({ type: 'Static', args: [tubeGeo2.attributes.position.array, tubeGeo2.index.array], position: [0,0,0], friction: 0.05, restitution: 0.2 }));
   const [tubeRef3] = useTrimesh(() => ({ type: 'Static', args: [tubeGeo3.attributes.position.array, tubeGeo3.index.array], position: [0,0,0], friction: 0.05, restitution: 0.2 }));
 
-  // 4. Grand Basket (Catching flying balls safely, walls perfectly joined)
-  const [basketFloor] = useBox(() => ({ type: 'Static', args: [22, 0.5, 18], position: [0, -7.25, 28], friction: 0.8, restitution: 0.2 }));
-  const [basketBack] = useBox(() => ({ type: 'Static', args: [22, 6, 0.5], position: [0, -4, 37], friction: 0.1 }));
-  const [basketFront] = useBox(() => ({ type: 'Static', args: [22, 1, 0.5], position: [0, -6.5, 19], friction: 0.1 }));
-  const [basketLeft] = useBox(() => ({ type: 'Static', args: [0.5, 6, 19], position: [-11, -4, 28], friction: 0.1 }));
-  const [basketRight] = useBox(() => ({ type: 'Static', args: [0.5, 6, 19], position: [11, -4, 28], friction: 0.1 }));
+  // 4. Grand Basket (Massive Conical Bowl)
+  const basketWallsGeo = useMemo(() => {
+    // Top R=18, Bot R=8, Height=8.
+    const geo = new THREE.CylinderGeometry(18, 8, 8, 64, 1, true);
+    geo.scale(-1, 1, 1); // Flip normals inward so balls roll inside
+    return geo;
+  }, []);
+  
+  const basketFloorGeo = useMemo(() => {
+    // R=8, Height=0.5
+    return new THREE.CylinderGeometry(8, 8, 0.5, 64, 1, false);
+  }, []);
+
+  const [basketWallsRef] = useTrimesh(() => ({ type: 'Static', args: [basketWallsGeo.attributes.position.array, basketWallsGeo.index.array], position: [0, -4, 28], friction: 0.1 }));
+  const [basketFloorRef] = useCylinder(() => ({ type: 'Static', args: [8, 8, 0.5, 64], position: [0, -8.25, 28], friction: 0.8, restitution: 0.2 }));
 
   return (
     <>
-      <mesh ref={mainFunnelRef} geometry={mainFunnelGeo}>
+      <group ref={drumRef} position={[0, OFFSET_Y, 0]}>
+        <mesh geometry={drumGeo}>
+          <meshStandardMaterial {...glassMatProps} />
+        </mesh>
+        <mesh geometry={drumGeo}>
+          <meshStandardMaterial {...wireMatProps} />
+        </mesh>
+      </group>
+
+      <mesh geometry={mainFunnelGeo} position={[0, 0, 0]}>
         <meshStandardMaterial {...glassMatProps} />
-        <mesh geometry={mainFunnelGeo}><meshBasicMaterial {...wireMatProps} /></mesh>
+      </mesh>
+      <mesh geometry={mainFunnelGeo} position={[0, 0, 0]}>
+        <meshStandardMaterial {...wireMatProps} />
       </mesh>
 
-      <mesh ref={subRefL} geometry={subFunnelGeo} position={subPosLeft}>
+      {[subPosLeft, subPosRight, subPosCenter].map((pos, i) => (
+        <group key={i}>
+          <mesh geometry={subFunnelGeo} position={pos}>
+            <meshStandardMaterial {...glassMatProps} />
+          </mesh>
+          <mesh geometry={subFunnelGeo} position={pos}>
+            <meshStandardMaterial {...wireMatProps} />
+          </mesh>
+        </group>
+      ))}
+
+      <mesh geometry={tubeGeo1} position={[0, 0, 0]}>
+        <meshStandardMaterial {...glassMatProps} color="#4ade80" />
+      </mesh>
+      <mesh geometry={tubeGeo1} position={[0, 0, 0]}>
+        <meshStandardMaterial {...wireMatProps} color="#4ade80" opacity={0.3} />
+      </mesh>
+
+      <mesh geometry={tubeGeo2} position={[0, 0, 0]}>
+        <meshStandardMaterial {...glassMatProps} color="#60a5fa" />
+      </mesh>
+      <mesh geometry={tubeGeo2} position={[0, 0, 0]}>
+        <meshStandardMaterial {...wireMatProps} color="#60a5fa" opacity={0.3} />
+      </mesh>
+
+      <mesh geometry={tubeGeo3} position={[0, 0, 0]}>
+        <meshStandardMaterial {...glassMatProps} color="#f87171" />
+      </mesh>
+      <mesh geometry={tubeGeo3} position={[0, 0, 0]}>
+        <meshStandardMaterial {...wireMatProps} color="#f87171" opacity={0.3} />
+      </mesh>
+
+      {/* Grand Basket (Conical Bowl) */}
+      <mesh geometry={basketWallsGeo} position={[0, -4, 28]}>
         <meshStandardMaterial {...glassMatProps} />
-        <mesh geometry={subFunnelGeo}><meshBasicMaterial {...wireMatProps} /></mesh>
       </mesh>
-      <mesh ref={subRefR} geometry={subFunnelGeo} position={subPosRight}>
+      <mesh geometry={basketWallsGeo} position={[0, -4, 28]}>
+        <meshStandardMaterial {...wireMatProps} />
+      </mesh>
+      <mesh geometry={basketFloorGeo} position={[0, -8.25, 28]}>
         <meshStandardMaterial {...glassMatProps} />
-        <mesh geometry={subFunnelGeo}><meshBasicMaterial {...wireMatProps} /></mesh>
       </mesh>
-      <mesh ref={subRefC} geometry={subFunnelGeo} position={subPosCenter}>
-        <meshStandardMaterial {...glassMatProps} />
-        <mesh geometry={subFunnelGeo}><meshBasicMaterial {...wireMatProps} /></mesh>
+      <mesh geometry={basketFloorGeo} position={[0, -8.25, 28]}>
+        <meshStandardMaterial {...wireMatProps} />
       </mesh>
-      
-      <mesh ref={tubeRef1} geometry={tubeGeo1}>
-        <meshStandardMaterial {...glassMatProps} color="#4ade80" opacity={0.15} />
-        <mesh geometry={tubeGeo1}><meshBasicMaterial {...wireMatProps} /></mesh>
-      </mesh>
-      <mesh ref={tubeRef2} geometry={tubeGeo2}>
-        <meshStandardMaterial {...glassMatProps} color="#38bdf8" opacity={0.15} />
-        <mesh geometry={tubeGeo2}><meshBasicMaterial {...wireMatProps} /></mesh>
-      </mesh>
-      <mesh ref={tubeRef3} geometry={tubeGeo3}>
-        <meshStandardMaterial {...glassMatProps} color="#f43f5e" opacity={0.15} />
-        <mesh geometry={tubeGeo3}><meshBasicMaterial {...wireMatProps} /></mesh>
-      </mesh>
-      
-      <mesh ref={basketFloor}><boxGeometry args={[16, 0.5, 12]}/><meshStandardMaterial color="#d4af37" metalness={0.8} roughness={0.2} /></mesh>
-      <mesh ref={basketBack}><boxGeometry args={[16, 4, 0.5]}/><meshStandardMaterial {...glassMatProps}/></mesh>
-      <mesh ref={basketFront}><boxGeometry args={[16, 1, 0.5]}/><meshStandardMaterial {...glassMatProps}/></mesh>
-      <mesh ref={basketLeft}><boxGeometry args={[0.5, 4, 12]}/><meshStandardMaterial {...glassMatProps}/></mesh>
-      <mesh ref={basketRight}><boxGeometry args={[0.5, 4, 12]}/><meshStandardMaterial {...glassMatProps}/></mesh>
     </>
   );
 }
 
-function Ball({ num, index, onWin, winnerAnnounced }) {
-  const [ref, api] = useSphere(() => ({
-    mass: 1,
-    args: [0.4],
-    position: [(Math.random() - 0.5) * 3, OFFSET_Y + (Math.random() - 0.5) * 3, (Math.random() - 0.5) * 4],
-    restitution: 0.4,
-    friction: 0.8,
-  }));
+function Scene({ reservedNumbers, isDrawing, isSpinning, onWin }) {
+  const ballMaterial = {
+    color: '#ffd700',
+    metalness: 0.9,
+    roughness: 0.1,
+    envMapIntensity: 1.5,
+  };
+
+  const ballApis = useRef([]);
 
   useEffect(() => {
-    const unsub = api.position.subscribe(p => {
-      // Grand Basket floor is at Y = -7. We trigger win if ball lands on the floor (Y < -6).
-      if (p[2] > 20 && p[1] < -6 && !winnerAnnounced.current) {
-        winnerAnnounced.current = true;
-        onWin(num);
-      }
-    });
-    return unsub;
-  }, [api.position, num, onWin, winnerAnnounced]);
-
-  return (
-    <mesh ref={ref} castShadow receiveShadow>
-      <sphereGeometry args={[0.4, 32, 32]} />
-      <meshStandardMaterial color="#d4af37" metalness={1} roughness={0.2} />
-      <Text position={[0, 0, 0.41]} fontSize={0.3} color="#182218" fontWeight="bold" material-depthWrite={false}>
-        {num}
-      </Text>
-      <Text position={[0, 0, -0.41]} rotation={[0, Math.PI, 0]} fontSize={0.3} color="#182218" fontWeight="bold" material-depthWrite={false}>
-        {num}
-      </Text>
-    </mesh>
-  );
-}
-
-function Scene({ reservedNumbers, isDrawing, isSpinning, onWin }) {
-  const drumAngle = useRef(0);
-  const winnerAnnounced = useRef(false);
-
-  useFrame((state, delta) => {
-    const speed = isSpinning && !isDrawing ? 6 : 1.5;
-    drumAngle.current += delta * speed;
-  });
+    if (isDrawing && ballApis.current.length > 0) {
+      ballApis.current.forEach(api => {
+        if (api) {
+          api.wakeUp();
+          api.applyImpulse(
+            [(Math.random() - 0.5) * 5, -10, (Math.random() - 0.5) * 5],
+            [0, 0, 0]
+          );
+        }
+      });
+    }
+  }, [isDrawing]);
 
   return (
     <>
-      <Environment preset="city" />
       <ambientLight intensity={0.5} />
-      <directionalLight position={[10, 20, 10]} intensity={1.5} castShadow />
+      <directionalLight position={[10, 10, 10]} intensity={1.5} castShadow />
+      <Environment preset="city" />
 
-      <Physics gravity={[0, -15, 0]}>
-        {Array.from({ length: 8 }).map((_, i) => (
-          <DrumPanel key={i} index={i} isDoor={i === 0} isDrawing={isDrawing} drumAngle={drumAngle} />
-        ))}
-        <DrumCaps drumAngle={drumAngle} />
-
-        <EpicMachine />
-
+      <Physics gravity={[0, -15, 0]} defaultContactMaterial={{ restitution: 0.3, friction: 0.1 }}>
+        <EpicMachine isSpinning={isSpinning} />
         {reservedNumbers.map((num, i) => (
-          <Ball key={num} num={num} index={i} onWin={onWin} winnerAnnounced={winnerAnnounced} />
+          <Ball 
+            key={num} 
+            num={num} 
+            material={ballMaterial} 
+            apiRef={{ current: (api) => ballApis.current[i] = api }}
+            onWin={onWin}
+          />
         ))}
       </Physics>
 
-      <ContactShadows position={[0, -9.5, 15]} opacity={0.6} scale={40} blur={2} far={15} />
+      <ContactShadows position={[0, -9, 28]} opacity={0.4} scale={40} blur={2} far={10} />
     </>
   );
 }
 
 export default function Tombola() {
   const [reservedNumbers, setReservedNumbers] = useState([]);
-  const [winner, setWinner] = useState(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [isSpinning, setIsSpinning] = useState(false);
+  const [winner, setWinner] = useState(null);
 
   useEffect(() => {
-    const fetchTickets = async () => {
-      const res = await fetch('/api/tickets');
-      const data = await res.json();
-      const numbers = Object.keys(data).map(Number).filter(n => data[n].reserved);
-      
-      for (let i = 101; i <= 200; i++) {
-        numbers.push(i);
-      }
-      setReservedNumbers(numbers);
-    };
-    fetchTickets();
+    setReservedNumbers(BOLETOS);
   }, []);
 
-  const triggerWin = (winNum) => {
-    setWinner(winNum);
+  const triggerDraw = () => {
+    if (isDrawing || reservedNumbers.length === 0) return;
+    setIsSpinning(true);
+    setWinner(null);
+    setTimeout(() => {
+      setIsSpinning(false);
+      setIsDrawing(true);
+    }, 2000);
+  };
+
+  const triggerWin = (winningNumber) => {
+    if (winner) return;
+    setWinner(winningNumber);
     confetti({
-      particleCount: 200,
-      spread: 90,
-      origin: { y: 0.7 }, 
-      colors: ['#d4af37', '#aa8c2c', '#f3e3a9', '#ffffff']
+      particleCount: 150,
+      spread: 100,
+      origin: { y: 0.6 },
+      colors: ['#ffd700', '#ffffff', '#000000']
     });
   };
 
-  const handleDraw = () => {
-    setIsSpinning(true);
-    setTimeout(() => {
-      setIsDrawing(true);
-    }, 4000);
-  };
-
   return (
-    <div style={{ width: '100vw', height: '100vh', background: '#0a0f0a', position: 'relative', overflow: 'hidden' }}>
-      
-      <div style={{ position: 'absolute', top: '2rem', left: '0', width: '100%', textAlign: 'center', zIndex: 10 }}>
-        <h1 className="brand" style={{ fontSize: '3rem', margin: 0 }}>Sorteo En Vivo</h1>
+    <div style={{ 
+      width: '100vw', 
+      height: '100vh', 
+      background: 'radial-gradient(circle at center, #1a1a1a 0%, #0a0a0a 100%)',
+      fontFamily: '"Inter", sans-serif',
+      position: 'relative'
+    }}>
+      <div style={{ position: 'absolute', top: '5%', left: '0', width: '100%', textAlign: 'center', zIndex: 10, pointerEvents: 'none' }}>
+        <h1 style={{ color: 'white', margin: 0, fontSize: '3rem', textShadow: '0 4px 10px rgba(0,0,0,0.5)' }}>Sorteo En Vivo</h1>
         <p style={{ color: 'var(--color-gold)', margin: 0 }}>{reservedNumbers.length} Boletos Participando</p>
       </div>
 
@@ -361,51 +387,72 @@ export default function Tombola() {
       </Canvas>
 
       {!isSpinning && !winner && reservedNumbers.length > 0 && (
-        <div style={{ position: 'absolute', bottom: '2rem', left: '50%', transform: 'translateX(-50%)', zIndex: 10 }}>
-          <button className="btn btn-primary" onClick={handleDraw} style={{ fontSize: '1.5rem', padding: '1rem 4rem' }}>
-            ¡Sacar Ganador!
-          </button>
-        </div>
-      )}
-
-      {isSpinning && !isDrawing && !winner && (
-        <div style={{ position: 'absolute', bottom: '2rem', left: '50%', transform: 'translateX(-50%)', zIndex: 10 }}>
-          <h2 style={{ color: 'var(--color-gold)', letterSpacing: '4px', fontSize: '2rem', animation: 'fadeIn 1s infinite alternate' }}>
-            Mezclando boletos...
-          </h2>
-        </div>
+        <button
+          onClick={triggerDraw}
+          style={{
+            position: 'absolute',
+            bottom: '10%',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            padding: '15px 40px',
+            fontSize: '1.2rem',
+            background: 'linear-gradient(45deg, #d4af37, #f3e5ab)',
+            border: 'none',
+            borderRadius: '30px',
+            cursor: 'pointer',
+            fontWeight: 'bold',
+            boxShadow: '0 10px 20px rgba(212, 175, 55, 0.3)',
+            transition: 'transform 0.2s',
+            zIndex: 10
+          }}
+          onMouseOver={(e) => e.target.style.transform = 'translateX(-50%) scale(1.05)'}
+          onMouseOut={(e) => e.target.style.transform = 'translateX(-50%) scale(1)'}
+        >
+          {isDrawing ? 'Sorteando...' : 'Sacar Boleto'}
+        </button>
       )}
 
       {winner && (
         <div style={{
           position: 'absolute',
-          top: '40%',
+          top: '50%',
           left: '50%',
           transform: 'translate(-50%, -50%)',
-          background: 'rgba(20, 28, 20, 0.95)',
-          padding: '4rem 6rem',
-          borderRadius: '24px',
-          border: '4px solid var(--color-gold)',
-          zIndex: 20,
+          background: 'rgba(0,0,0,0.8)',
+          padding: '40px 80px',
+          borderRadius: '20px',
+          border: '2px solid var(--color-gold)',
           textAlign: 'center',
-          boxShadow: '0 0 80px rgba(212, 175, 55, 0.4)',
-          animation: 'slideUp 0.5s ease-out'
+          color: 'white',
+          boxShadow: '0 0 50px rgba(212, 175, 55, 0.5)',
+          animation: 'popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+          zIndex: 20
         }}>
-          <h2 style={{ color: 'var(--color-text-muted)', fontSize: '1.5rem', letterSpacing: '4px', marginBottom: '1rem' }}>¡TENEMOS GANADOR!</h2>
-          <div style={{ fontSize: '6rem', color: 'var(--color-gold)', fontFamily: 'serif', fontWeight: 'bold', lineHeight: 1 }}>
-            Boleto #{winner}
-          </div>
-          <button className="btn btn-primary" onClick={() => window.location.reload()} style={{ marginTop: '3rem' }}>
+          <h2 style={{ fontSize: '2rem', margin: '0 0 10px 0', color: 'var(--color-gold)' }}>¡Tenemos un Ganador!</h2>
+          <div style={{ fontSize: '6rem', fontWeight: 'bold' }}>#{winner}</div>
+          <button 
+            onClick={() => window.location.reload()}
+            style={{
+              marginTop: '20px',
+              padding: '10px 30px',
+              background: 'transparent',
+              border: '1px solid var(--color-gold)',
+              color: 'var(--color-gold)',
+              borderRadius: '20px',
+              cursor: 'pointer'
+            }}
+          >
             Nuevo Sorteo
           </button>
         </div>
       )}
 
-      <div style={{ position: 'absolute', top: '2rem', left: '2rem', zIndex: 10 }}>
-        <Link to="/boletos" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', borderBottom: '1px solid var(--color-text-muted)' }}>
-          ← Volver a Boletos
-        </Link>
-      </div>
+      <style>{`
+        @keyframes popIn {
+          0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+          100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        }
+      `}</style>
     </div>
   );
 }
