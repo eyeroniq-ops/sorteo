@@ -66,8 +66,8 @@ function DrumCaps({ drumAngle }) {
   const [backRef, backApi] = useCylinder(() => ({ type: 'Kinematic', args: [R, R, 0.2, 8], position: [0, 0, initBackZ], rotation: [Math.PI/2, 0, 0] }));
 
   useFrame(() => {
-    frontApi.rotation.set(Math.PI/2, drumAngle.current + Math.PI/8, 0);
-    backApi.rotation.set(Math.PI/2, drumAngle.current + Math.PI/8, 0);
+    frontApi.rotation.set(Math.PI/2, drumAngle.current - Math.PI/8, 0);
+    backApi.rotation.set(Math.PI/2, drumAngle.current - Math.PI/8, 0);
   });
 
   const materialProps = { color: "#ffffff", transparent: true, opacity: 0.15, depthWrite: false, side: THREE.DoubleSide };
@@ -147,12 +147,13 @@ function Ball({ num, index, onWin, winnerAnnounced }) {
   );
 }
 
-function Scene({ reservedNumbers, isDrawing, onWin }) {
+function Scene({ reservedNumbers, isDrawing, isSpinning, onWin }) {
   const drumAngle = useRef(0);
   const winnerAnnounced = useRef(false);
 
   useFrame((state, delta) => {
-    drumAngle.current += delta * 1.5; // Rotation speed
+    const speed = isSpinning && !isDrawing ? 6 : 1.5;
+    drumAngle.current += delta * speed; // Rotation speed
   });
 
   return (
@@ -185,6 +186,7 @@ export default function Tombola() {
   const [reservedNumbers, setReservedNumbers] = useState([]);
   const [winner, setWinner] = useState(null);
   const [isDrawing, setIsDrawing] = useState(false);
+  const [isSpinning, setIsSpinning] = useState(false);
 
   useEffect(() => {
     const fetchTickets = async () => {
@@ -212,10 +214,11 @@ export default function Tombola() {
   };
 
   const handleDraw = () => {
+    setIsSpinning(true);
     // 1. Give it 3 seconds of high speed spinning before opening the door
     setTimeout(() => {
       setIsDrawing(true);
-    }, 3000);
+    }, 4000);
   };
 
   return (
@@ -227,15 +230,23 @@ export default function Tombola() {
       </div>
 
       <Canvas shadows camera={{ position: [0, 2, 16], fov: 45 }}>
-        <Scene reservedNumbers={reservedNumbers} isDrawing={isDrawing} onWin={triggerWin} />
+        <Scene reservedNumbers={reservedNumbers} isDrawing={isDrawing} isSpinning={isSpinning} onWin={triggerWin} />
         <OrbitControls enableZoom={true} enablePan={false} maxPolarAngle={Math.PI / 2 + 0.1} />
       </Canvas>
 
-      {!isDrawing && !winner && reservedNumbers.length > 0 && (
+      {!isSpinning && !winner && reservedNumbers.length > 0 && (
         <div style={{ position: 'absolute', bottom: '2rem', left: '50%', transform: 'translateX(-50%)', zIndex: 10 }}>
           <button className="btn btn-primary" onClick={handleDraw} style={{ fontSize: '1.5rem', padding: '1rem 4rem' }}>
             ¡Sacar Ganador!
           </button>
+        </div>
+      )}
+
+      {isSpinning && !isDrawing && !winner && (
+        <div style={{ position: 'absolute', bottom: '2rem', left: '50%', transform: 'translateX(-50%)', zIndex: 10 }}>
+          <h2 style={{ color: 'var(--color-gold)', letterSpacing: '4px', fontSize: '2rem', animation: 'fadeIn 1s infinite alternate' }}>
+            Mezclando boletos...
+          </h2>
         </div>
       )}
 
