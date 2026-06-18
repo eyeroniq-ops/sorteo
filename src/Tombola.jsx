@@ -121,51 +121,79 @@ function EpicMachine() {
   const [subRefR] = useTrimesh(() => ({ type: 'Static', args: [subFunnelGeo.attributes.position.array, subFunnelGeo.index.array], position: subPosRight, friction: 0.1 }));
   const [subRefC] = useTrimesh(() => ({ type: 'Static', args: [subFunnelGeo.attributes.position.array, subFunnelGeo.index.array], position: subPosCenter, friction: 0.1 }));
 
-  // 3. Three Tubes (Completely separated to prevent intersections)
+  // 3. Three Epic Tubes (Massively extended and completely separated)
   const tubeGeo1 = useMemo(() => {
-    // Curve 1: Strictly Left side (Negative X)
+    // Curve 1: Triple Spiral Down! (Strictly Left side X <= -3)
     const curve = new THREE.CatmullRomCurve3([
       new THREE.Vector3(-1.2, 1, 1),
-      new THREE.Vector3(-2, 0, 1),
-      new THREE.Vector3(-6, -1, 4),
-      new THREE.Vector3(-8, -2, 8),
-      new THREE.Vector3(-4, -3, 12),
-      new THREE.Vector3(-6, -4, 15),
-      new THREE.Vector3(-3, -5, 19) // Drop into basket
+      new THREE.Vector3(-3, 0.5, 2),
+      // Spiral 1
+      new THREE.Vector3(-3, 0, 5),     
+      new THREE.Vector3(-6, -0.5, 8),  
+      new THREE.Vector3(-9, -1.0, 5),  
+      new THREE.Vector3(-6, -1.5, 2),  
+      // Spiral 2
+      new THREE.Vector3(-3, -2.0, 5),  
+      new THREE.Vector3(-6, -2.5, 8),  
+      new THREE.Vector3(-9, -3.0, 5),  
+      new THREE.Vector3(-6, -3.5, 2),  
+      // Spiral 3
+      new THREE.Vector3(-3, -4.0, 5),  
+      new THREE.Vector3(-6, -4.5, 8),  
+      new THREE.Vector3(-9, -4.7, 5),  
+      new THREE.Vector3(-6, -4.8, 12), 
+      new THREE.Vector3(-3, -4.9, 15),
+      new THREE.Vector3(-4, -5.0, 19)  // Drop into basket
     ]);
-    const geo = new THREE.TubeGeometry(curve, 128, 0.8, 16, false);
+    const geo = new THREE.TubeGeometry(curve, 300, 0.8, 16, false);
     geo.scale(-1, 1, 1);
     return geo;
   }, []);
 
   const tubeGeo2 = useMemo(() => {
-    // Curve 2: Strictly Right side (Positive X)
+    // Curve 2: Figure-8 Loops! (Strictly Right side X >= 3)
     const curve = new THREE.CatmullRomCurve3([
       new THREE.Vector3(1.2, 1, 1),
-      new THREE.Vector3(2, 0, 1),
-      new THREE.Vector3(6, -1, 4),
-      new THREE.Vector3(8, -2, 8),
-      new THREE.Vector3(4, -3, 12),
-      new THREE.Vector3(6, -4, 15),
-      new THREE.Vector3(3, -5, 19) // Drop into basket
+      new THREE.Vector3(3, 0.5, 2),
+      // Top Loop
+      new THREE.Vector3(3, 0, 5),     
+      new THREE.Vector3(6, -0.5, 2),  
+      new THREE.Vector3(9, -1.0, 5),  
+      new THREE.Vector3(6, -1.5, 8),  
+      // Crossover to Bottom Loop
+      new THREE.Vector3(3, -2.0, 11), 
+      // Bottom Loop
+      new THREE.Vector3(6, -2.5, 14), 
+      new THREE.Vector3(9, -3.0, 11), 
+      new THREE.Vector3(6, -3.5, 8),  
+      // Crossover Exit
+      new THREE.Vector3(3, -4.0, 11), 
+      new THREE.Vector3(6, -4.5, 14), 
+      new THREE.Vector3(8, -4.7, 16), 
+      new THREE.Vector3(4, -5.0, 19)  // Drop into basket
     ]);
-    const geo = new THREE.TubeGeometry(curve, 128, 0.8, 16, false);
+    const geo = new THREE.TubeGeometry(curve, 300, 0.8, 16, false);
     geo.scale(-1, 1, 1);
     return geo;
   }, []);
 
   const tubeGeo3 = useMemo(() => {
-    // Curve 3: Strictly Center (X=0)
+    // Curve 3: Mega Slalom! (Strictly Center -1.5 <= X <= 1.5)
     const curve = new THREE.CatmullRomCurve3([
       new THREE.Vector3(0, 1, -1),
-      new THREE.Vector3(0, 0, 0),
-      new THREE.Vector3(0, -1, 4),
-      new THREE.Vector3(0, -3, 8),
-      new THREE.Vector3(0, -2.5, 12), // Speed bump
-      new THREE.Vector3(0, -4, 15),
+      new THREE.Vector3(0, 0.5, 0),
+      new THREE.Vector3(-1.5, 0, 2),
+      new THREE.Vector3(1.5, -0.5, 4),
+      new THREE.Vector3(-1.5, -1, 6),
+      new THREE.Vector3(1.5, -1.5, 8),
+      new THREE.Vector3(-1.5, -2, 10),
+      new THREE.Vector3(1.5, -2.5, 12),
+      new THREE.Vector3(-1.5, -3, 14),
+      new THREE.Vector3(1.5, -3.5, 16),
+      new THREE.Vector3(0, -4.5, 18), 
       new THREE.Vector3(0, -5, 19) // Drop into basket
     ]);
-    const geo = new THREE.TubeGeometry(curve, 128, 0.8, 16, false);
+    const geo = new THREE.TubeGeometry(curve, 300, 0.8, 16, false);
     geo.scale(-1, 1, 1);
     return geo;
   }, []);
