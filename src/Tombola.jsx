@@ -13,9 +13,15 @@ const L = 6;
 
 function DrumPanel({ index, isDoor, isDrawing, drumAngle }) {
   const initAngle = (index / 8) * Math.PI * 2;
+  const initX = Math.cos(initAngle) * R;
+  const initY = Math.sin(initAngle) * R;
+  const initRotZ = initAngle + Math.PI / 2;
+
   const [ref, api] = useBox(() => ({ 
     type: 'Kinematic', 
     args: [w, t, L],
+    position: [initX, initY, 0],
+    rotation: [0, 0, initRotZ],
     collisionFilterGroup: 1,
     collisionFilterMask: 1
   }));
@@ -37,33 +43,47 @@ function DrumPanel({ index, isDoor, isDrawing, drumAngle }) {
   return (
     <mesh ref={ref}>
       <boxGeometry args={[w, t, L]} />
-      <meshPhysicalMaterial 
-        transparent 
-        transmission={0.95} 
-        roughness={0.05} 
-        thickness={0.5} 
-        ior={1.5} 
+      <meshStandardMaterial 
         color="#ffffff" 
+        transparent 
+        opacity={0.15} 
+        depthWrite={false}
+        side={THREE.DoubleSide}
       />
+      <mesh>
+        <boxGeometry args={[w, t, L]} />
+        <meshBasicMaterial color="#d4af37" wireframe={true} transparent opacity={0.3} />
+      </mesh>
     </mesh>
   );
 }
 
 function DrumCaps({ drumAngle }) {
-  const [frontRef, frontApi] = useCylinder(() => ({ type: 'Kinematic', args: [R + 0.2, R + 0.2, 0.2, 16], position: [0, 0, L / 2], rotation: [Math.PI/2, 0, 0] }));
-  const [backRef, backApi] = useCylinder(() => ({ type: 'Kinematic', args: [R + 0.2, R + 0.2, 0.2, 16], position: [0, 0, -L / 2], rotation: [Math.PI/2, 0, 0] }));
+  const initFrontZ = L / 2;
+  const initBackZ = -L / 2;
+
+  const [frontRef, frontApi] = useCylinder(() => ({ type: 'Kinematic', args: [R, R, 0.2, 8], position: [0, 0, initFrontZ], rotation: [Math.PI/2, 0, 0] }));
+  const [backRef, backApi] = useCylinder(() => ({ type: 'Kinematic', args: [R, R, 0.2, 8], position: [0, 0, initBackZ], rotation: [Math.PI/2, 0, 0] }));
 
   useFrame(() => {
-    frontApi.rotation.set(Math.PI/2, drumAngle.current, 0);
-    backApi.rotation.set(Math.PI/2, drumAngle.current, 0);
+    frontApi.rotation.set(Math.PI/2, drumAngle.current + Math.PI/8, 0);
+    backApi.rotation.set(Math.PI/2, drumAngle.current + Math.PI/8, 0);
   });
 
-  const material = <meshPhysicalMaterial transparent transmission={0.9} roughness={0.1} thickness={0.5} ior={1.5} color="#ffffff" />;
+  const materialProps = { color: "#ffffff", transparent: true, opacity: 0.15, depthWrite: false, side: THREE.DoubleSide };
   
   return (
     <>
-      <mesh ref={frontRef}><cylinderGeometry args={[R + 0.2, R + 0.2, 0.2, 16]} />{material}</mesh>
-      <mesh ref={backRef}><cylinderGeometry args={[R + 0.2, R + 0.2, 0.2, 16]} />{material}</mesh>
+      <mesh ref={frontRef}>
+        <cylinderGeometry args={[R, R, 0.2, 8]} />
+        <meshStandardMaterial {...materialProps} />
+        <mesh><cylinderGeometry args={[R, R, 0.2, 8]} /><meshBasicMaterial color="#d4af37" wireframe={true} transparent opacity={0.4} /></mesh>
+      </mesh>
+      <mesh ref={backRef}>
+        <cylinderGeometry args={[R, R, 0.2, 8]} />
+        <meshStandardMaterial {...materialProps} />
+        <mesh><cylinderGeometry args={[R, R, 0.2, 8]} /><meshBasicMaterial color="#d4af37" wireframe={true} transparent opacity={0.4} /></mesh>
+      </mesh>
     </>
   );
 }
@@ -116,11 +136,11 @@ function Ball({ num, index, onWin, winnerAnnounced }) {
   return (
     <mesh ref={ref} castShadow receiveShadow>
       <sphereGeometry args={[0.4, 32, 32]} />
-      <meshStandardMaterial color="#d4af37" metalness={1} roughness={0.15} />
-      <Text position={[0, 0, 0.41]} fontSize={0.3} color="#182218" fontWeight="bold">
+      <meshStandardMaterial color="#d4af37" metalness={1} roughness={0.2} />
+      <Text position={[0, 0, 0.41]} fontSize={0.3} color="#182218" fontWeight="bold" material-depthWrite={false}>
         {num}
       </Text>
-      <Text position={[0, 0, -0.41]} rotation={[0, Math.PI, 0]} fontSize={0.3} color="#182218" fontWeight="bold">
+      <Text position={[0, 0, -0.41]} rotation={[0, Math.PI, 0]} fontSize={0.3} color="#182218" fontWeight="bold" material-depthWrite={false}>
         {num}
       </Text>
     </mesh>
@@ -141,7 +161,7 @@ function Scene({ reservedNumbers, isDrawing, onWin }) {
       <ambientLight intensity={0.5} />
       <directionalLight position={[10, 10, 5]} intensity={1.5} castShadow />
 
-      <Physics gravity={[0, -9.81, 0]}>
+      <Physics gravity={[0, -15, 0]}>
         {/* Drum Panels */}
         {Array.from({ length: 8 }).map((_, i) => (
           <DrumPanel key={i} index={i} isDoor={i === 0} isDrawing={isDrawing} drumAngle={drumAngle} />
