@@ -90,10 +90,11 @@ function EpicMachine() {
   const glassMatProps = { transparent: true, opacity: 0.25, depthWrite: false, side: THREE.DoubleSide, color: "#ffffff" };
   const wireMatProps = { color: "#d4af37", wireframe: true, transparent: true, opacity: 0.15 };
 
-  // 1. Main Funnel (Y=2 to Y=5)
+  // 1. Main Funnel (Y=2 to Y=6)
   const mainFunnelGeo = useMemo(() => {
-    const geo = new THREE.CylinderGeometry(5, 2.4, 3, 32, 1, true);
-    geo.translate(0, 3.5, 0); 
+    // Top radius 8, bottom radius 2.5, height 4
+    const geo = new THREE.CylinderGeometry(8, 2.5, 4, 32, 1, true);
+    geo.translate(0, 4, 0); // Center=4 (Top=6, Bottom=2)
     geo.scale(-1, 1, 1); 
     return geo;
   }, []);
@@ -106,16 +107,18 @@ function EpicMachine() {
     restitution: 0.2
   }));
 
-  // 2. Sub-Funnels (Y=1 to Y=2)
+  // 2. Sub-Funnels (Y=0 to Y=2)
   const subFunnelGeo = useMemo(() => {
-    const geo = new THREE.CylinderGeometry(1.2, 0.8, 1, 32, 1, true);
+    // Top radius 2.2 (huge overlap to catch everything), bottom radius 0.8, height 2
+    const geo = new THREE.CylinderGeometry(2.2, 0.8, 2, 32, 1, true);
+    geo.translate(0, 1, 0); // Center=1 (Top=2, Bottom=0)
     geo.scale(-1, 1, 1);
     return geo;
   }, []);
 
-  const subPosLeft = [-1.2, 1.5, 1];
-  const subPosRight = [1.2, 1.5, 1];
-  const subPosCenter = [0, 1.5, -1];
+  const subPosLeft = [-1.5, 0, 1];
+  const subPosRight = [1.5, 0, 1];
+  const subPosCenter = [0, 0, -1.5];
 
   const [subRefL] = useTrimesh(() => ({ type: 'Static', args: [subFunnelGeo.attributes.position.array, subFunnelGeo.index.array], position: subPosLeft, friction: 0.1 }));
   const [subRefR] = useTrimesh(() => ({ type: 'Static', args: [subFunnelGeo.attributes.position.array, subFunnelGeo.index.array], position: subPosRight, friction: 0.1 }));
@@ -123,77 +126,49 @@ function EpicMachine() {
 
   // 3. Three Epic Tubes (Massively extended and completely separated)
   const tubeGeo1 = useMemo(() => {
-    // Curve 1: Triple Spiral Down! (Strictly Left side X <= -3)
+    // Curve 1: Mega Sweeps (Strictly Left side)
     const curve = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(-1.2, 1, 1),
-      new THREE.Vector3(-3, 0.5, 2),
-      // Spiral 1
-      new THREE.Vector3(-3, 0, 5),     
-      new THREE.Vector3(-6, -0.5, 8),  
-      new THREE.Vector3(-9, -1.0, 5),  
-      new THREE.Vector3(-6, -1.5, 2),  
-      // Spiral 2
-      new THREE.Vector3(-3, -2.0, 5),  
-      new THREE.Vector3(-6, -2.5, 8),  
-      new THREE.Vector3(-9, -3.0, 5),  
-      new THREE.Vector3(-6, -3.5, 2),  
-      // Spiral 3
-      new THREE.Vector3(-3, -4.0, 5),  
-      new THREE.Vector3(-6, -4.5, 8),  
-      new THREE.Vector3(-9, -4.7, 5),  
-      new THREE.Vector3(-6, -4.8, 12), 
-      new THREE.Vector3(-3, -4.9, 15),
-      new THREE.Vector3(-4, -5.0, 19)  // Drop into basket
+      new THREE.Vector3(-1.5, 0, 1),
+      new THREE.Vector3(-1.5, -1, 1), // Straight drop to avoid kinks
+      new THREE.Vector3(-5, -2, 4),
+      new THREE.Vector3(-8, -3, 10),
+      new THREE.Vector3(-5, -4, 16),
+      new THREE.Vector3(-8, -5, 22),
+      new THREE.Vector3(-4, -6, 28) // Drop into basket
     ]);
-    const geo = new THREE.TubeGeometry(curve, 300, 0.8, 16, false);
+    const geo = new THREE.TubeGeometry(curve, 200, 0.8, 16, false);
     geo.scale(-1, 1, 1);
     return geo;
   }, []);
 
   const tubeGeo2 = useMemo(() => {
-    // Curve 2: Figure-8 Loops! (Strictly Right side X >= 3)
+    // Curve 2: Mega Sweeps (Strictly Right side)
     const curve = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(1.2, 1, 1),
-      new THREE.Vector3(3, 0.5, 2),
-      // Top Loop
-      new THREE.Vector3(3, 0, 5),     
-      new THREE.Vector3(6, -0.5, 2),  
-      new THREE.Vector3(9, -1.0, 5),  
-      new THREE.Vector3(6, -1.5, 8),  
-      // Crossover to Bottom Loop
-      new THREE.Vector3(3, -2.0, 11), 
-      // Bottom Loop
-      new THREE.Vector3(6, -2.5, 14), 
-      new THREE.Vector3(9, -3.0, 11), 
-      new THREE.Vector3(6, -3.5, 8),  
-      // Crossover Exit
-      new THREE.Vector3(3, -4.0, 11), 
-      new THREE.Vector3(6, -4.5, 14), 
-      new THREE.Vector3(8, -4.7, 16), 
-      new THREE.Vector3(4, -5.0, 19)  // Drop into basket
+      new THREE.Vector3(1.5, 0, 1),
+      new THREE.Vector3(1.5, -1, 1), // Straight drop
+      new THREE.Vector3(5, -2, 4),
+      new THREE.Vector3(8, -3, 10),
+      new THREE.Vector3(5, -4, 16),
+      new THREE.Vector3(8, -5, 22),
+      new THREE.Vector3(4, -6, 28) // Drop into basket
     ]);
-    const geo = new THREE.TubeGeometry(curve, 300, 0.8, 16, false);
+    const geo = new THREE.TubeGeometry(curve, 200, 0.8, 16, false);
     geo.scale(-1, 1, 1);
     return geo;
   }, []);
 
   const tubeGeo3 = useMemo(() => {
-    // Curve 3: Mega Slalom! (Strictly Center -1.5 <= X <= 1.5)
+    // Curve 3: Mega Slalom! (Strictly Center)
     const curve = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(0, 1, -1),
-      new THREE.Vector3(0, 0.5, 0),
-      new THREE.Vector3(-1.5, 0, 2),
-      new THREE.Vector3(1.5, -0.5, 4),
-      new THREE.Vector3(-1.5, -1, 6),
-      new THREE.Vector3(1.5, -1.5, 8),
-      new THREE.Vector3(-1.5, -2, 10),
-      new THREE.Vector3(1.5, -2.5, 12),
-      new THREE.Vector3(-1.5, -3, 14),
-      new THREE.Vector3(1.5, -3.5, 16),
-      new THREE.Vector3(0, -4.5, 18), 
-      new THREE.Vector3(0, -5, 19) // Drop into basket
+      new THREE.Vector3(0, 0, -1.5),
+      new THREE.Vector3(0, -1, -1.5), // Straight drop
+      new THREE.Vector3(0, -2, 4),
+      new THREE.Vector3(-2, -3, 10),
+      new THREE.Vector3(2, -4, 16),
+      new THREE.Vector3(-2, -5, 22),
+      new THREE.Vector3(0, -6, 28) // Drop into basket
     ]);
-    const geo = new THREE.TubeGeometry(curve, 300, 0.8, 16, false);
+    const geo = new THREE.TubeGeometry(curve, 200, 0.8, 16, false);
     geo.scale(-1, 1, 1);
     return geo;
   }, []);
@@ -203,14 +178,14 @@ function EpicMachine() {
   const [tubeRef3] = useTrimesh(() => ({ type: 'Static', args: [tubeGeo3.attributes.position.array, tubeGeo3.index.array], position: [0,0,0], friction: 0.1 }));
 
   // 4. Grand Basket (Catching flying balls safely)
-  // Tubes end at Z=19, Y=-5.
-  // Basket floor at Y=-9. Bounds: Z from 18 to 30. X from -8 to 8.
-  const [basketFloor] = useBox(() => ({ type: 'Static', args: [16, 0.5, 12], position: [0, -9.25, 24], friction: 0.8, restitution: 0.2 }));
-  const [basketBack] = useBox(() => ({ type: 'Static', args: [16, 4, 0.5], position: [0, -7, 30], friction: 0.1 }));
-  // Front wall lowered so it NEVER intersects the tubes! Top of wall is Y = -8.5 + 0.5 = -8. Tubes are at Y = -5.
-  const [basketFront] = useBox(() => ({ type: 'Static', args: [16, 1, 0.5], position: [0, -8.5, 18], friction: 0.1 }));
-  const [basketLeft] = useBox(() => ({ type: 'Static', args: [0.5, 4, 12], position: [-8, -7, 24], friction: 0.1 }));
-  const [basketRight] = useBox(() => ({ type: 'Static', args: [0.5, 4, 12], position: [8, -7, 24], friction: 0.1 }));
+  // Tubes end at Z=28, Y=-6.
+  // Basket floor at Y=-7. Bounds: Z from 20 to 36. X from -10 to 10.
+  const [basketFloor] = useBox(() => ({ type: 'Static', args: [20, 0.5, 16], position: [0, -7.25, 28], friction: 0.8, restitution: 0.2 }));
+  const [basketBack] = useBox(() => ({ type: 'Static', args: [20, 6, 0.5], position: [0, -4, 36], friction: 0.1 }));
+  // Front wall lowered so it NEVER intersects the tubes! Top of wall is Y = -6. Tubes are at Y = -6, passing over perfectly.
+  const [basketFront] = useBox(() => ({ type: 'Static', args: [20, 1, 0.5], position: [0, -6.5, 20], friction: 0.1 }));
+  const [basketLeft] = useBox(() => ({ type: 'Static', args: [0.5, 6, 16], position: [-10, -4, 28], friction: 0.1 }));
+  const [basketRight] = useBox(() => ({ type: 'Static', args: [0.5, 6, 16], position: [10, -4, 28], friction: 0.1 }));
 
   return (
     <>
@@ -265,8 +240,8 @@ function Ball({ num, index, onWin, winnerAnnounced }) {
 
   useEffect(() => {
     const unsub = api.position.subscribe(p => {
-      // Grand Basket floor is at Y = -9. We trigger win if ball lands on the floor (Y < -8).
-      if (p[2] > 18.5 && p[1] < -8 && !winnerAnnounced.current) {
+      // Grand Basket floor is at Y = -7. We trigger win if ball lands on the floor (Y < -6).
+      if (p[2] > 20 && p[1] < -6 && !winnerAnnounced.current) {
         winnerAnnounced.current = true;
         onWin(num);
       }
@@ -366,9 +341,9 @@ export default function Tombola() {
         <p style={{ color: 'var(--color-gold)', margin: 0 }}>{reservedNumbers.length} Boletos Participando</p>
       </div>
 
-      <Canvas shadows camera={{ position: [0, 10, 35], fov: 45 }}>
+      <Canvas shadows camera={{ position: [0, 15, 48], fov: 45 }}>
         <Scene reservedNumbers={reservedNumbers} isDrawing={isDrawing} isSpinning={isSpinning} onWin={triggerWin} />
-        <OrbitControls enableZoom={true} enablePan={false} maxPolarAngle={Math.PI / 2 + 0.1} target={[0, 0, 10]} />
+        <OrbitControls enableZoom={true} enablePan={false} maxPolarAngle={Math.PI / 2 + 0.1} target={[0, -2, 12]} />
       </Canvas>
 
       {!isSpinning && !winner && reservedNumbers.length > 0 && (
