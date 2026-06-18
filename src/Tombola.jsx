@@ -124,58 +124,81 @@ function EpicMachine() {
   const [subRefR] = useTrimesh(() => ({ type: 'Static', args: [subFunnelGeo.attributes.position.array, subFunnelGeo.index.array], position: subPosRight, friction: 0.1 }));
   const [subRefC] = useTrimesh(() => ({ type: 'Static', args: [subFunnelGeo.attributes.position.array, subFunnelGeo.index.array], position: subPosCenter, friction: 0.1 }));
 
-  // 3. Three Epic Tubes (Massively extended and completely separated)
+  // 3. Three Epic Tubes (Massive Spirals and Loops, perfectly isolated)
   const tubeGeo1 = useMemo(() => {
-    // Curve 1: Mega Sweeps (Strictly Left side)
+    // Curve 1: Double Spiral (Strictly Left side X <= -4)
     const curve = new THREE.CatmullRomCurve3([
       new THREE.Vector3(-1.5, 0, 1),
-      new THREE.Vector3(-1.5, -1, 1), // Straight drop to avoid kinks
-      new THREE.Vector3(-5, -2, 4),
-      new THREE.Vector3(-8, -3, 10),
-      new THREE.Vector3(-5, -4, 16),
-      new THREE.Vector3(-8, -5, 22),
-      new THREE.Vector3(-4, -6, 28) // Drop into basket
+      new THREE.Vector3(-1.5, -1, 1), // Straight drop for speed
+      new THREE.Vector3(-4, -2.0, 9), // Enter Spiral (Center X=-8, Z=9, R=4)
+      // Loop 1
+      new THREE.Vector3(-8, -2.4, 13),
+      new THREE.Vector3(-12, -2.8, 9),
+      new THREE.Vector3(-8, -3.2, 5),
+      new THREE.Vector3(-4, -3.6, 9),
+      // Loop 2
+      new THREE.Vector3(-8, -4.0, 13),
+      new THREE.Vector3(-12, -4.4, 9),
+      new THREE.Vector3(-8, -4.8, 5),
+      new THREE.Vector3(-4, -5.2, 9),
+      // Exit
+      new THREE.Vector3(-6, -5.6, 18),
+      new THREE.Vector3(-4, -6.0, 28) // Drop into basket
     ]);
-    const geo = new THREE.TubeGeometry(curve, 200, 0.8, 16, false);
+    const geo = new THREE.TubeGeometry(curve, 300, 0.8, 16, false);
     geo.scale(-1, 1, 1);
     return geo;
   }, []);
 
   const tubeGeo2 = useMemo(() => {
-    // Curve 2: Mega Sweeps (Strictly Right side)
+    // Curve 2: Figure-8 (Strictly Right side X >= 4)
     const curve = new THREE.CatmullRomCurve3([
       new THREE.Vector3(1.5, 0, 1),
-      new THREE.Vector3(1.5, -1, 1), // Straight drop
-      new THREE.Vector3(5, -2, 4),
-      new THREE.Vector3(8, -3, 10),
-      new THREE.Vector3(5, -4, 16),
-      new THREE.Vector3(8, -5, 22),
-      new THREE.Vector3(4, -6, 28) // Drop into basket
+      new THREE.Vector3(1.5, -1, 1), // Straight drop for speed
+      new THREE.Vector3(4, -2.0, 9), // Enter Top Loop (Center X=8, Z=9, R=4)
+      // Top Loop
+      new THREE.Vector3(8, -2.4, 5),
+      new THREE.Vector3(12, -2.8, 9),
+      new THREE.Vector3(8, -3.2, 13),
+      // Crossover to Bottom Loop (Center X=8, Z=19, R=4)
+      new THREE.Vector3(4, -3.6, 19),
+      // Bottom Loop
+      new THREE.Vector3(8, -4.0, 23),
+      new THREE.Vector3(12, -4.4, 19),
+      new THREE.Vector3(8, -4.8, 15),
+      // Exit
+      new THREE.Vector3(6, -5.2, 21),
+      new THREE.Vector3(4, -6.0, 28) // Drop into basket
     ]);
-    const geo = new THREE.TubeGeometry(curve, 200, 0.8, 16, false);
+    const geo = new THREE.TubeGeometry(curve, 300, 0.8, 16, false);
     geo.scale(-1, 1, 1);
     return geo;
   }, []);
 
   const tubeGeo3 = useMemo(() => {
-    // Curve 3: Mega Slalom! (Strictly Center)
+    // Curve 3: Mega Slalom! (Strictly Center -2 <= X <= 2)
     const curve = new THREE.CatmullRomCurve3([
       new THREE.Vector3(0, 0, -1.5),
-      new THREE.Vector3(0, -1, -1.5), // Straight drop
-      new THREE.Vector3(0, -2, 4),
-      new THREE.Vector3(-2, -3, 10),
-      new THREE.Vector3(2, -4, 16),
-      new THREE.Vector3(-2, -5, 22),
-      new THREE.Vector3(0, -6, 28) // Drop into basket
+      new THREE.Vector3(0, -1, -1.5), // Straight drop for speed
+      new THREE.Vector3(0, -1.5, 3),
+      new THREE.Vector3(-2, -2.0, 6),
+      new THREE.Vector3(0, -2.5, 9),
+      new THREE.Vector3(2, -3.0, 12),
+      new THREE.Vector3(0, -3.5, 15),
+      new THREE.Vector3(-2, -4.0, 18),
+      new THREE.Vector3(0, -4.5, 21),
+      new THREE.Vector3(2, -5.0, 24),
+      new THREE.Vector3(0, -5.5, 26),
+      new THREE.Vector3(0, -6.0, 28) // Drop into basket
     ]);
-    const geo = new THREE.TubeGeometry(curve, 200, 0.8, 16, false);
+    const geo = new THREE.TubeGeometry(curve, 300, 0.8, 16, false);
     geo.scale(-1, 1, 1);
     return geo;
   }, []);
 
-  const [tubeRef1] = useTrimesh(() => ({ type: 'Static', args: [tubeGeo1.attributes.position.array, tubeGeo1.index.array], position: [0,0,0], friction: 0.1 }));
-  const [tubeRef2] = useTrimesh(() => ({ type: 'Static', args: [tubeGeo2.attributes.position.array, tubeGeo2.index.array], position: [0,0,0], friction: 0.1 }));
-  const [tubeRef3] = useTrimesh(() => ({ type: 'Static', args: [tubeGeo3.attributes.position.array, tubeGeo3.index.array], position: [0,0,0], friction: 0.1 }));
+  const [tubeRef1] = useTrimesh(() => ({ type: 'Static', args: [tubeGeo1.attributes.position.array, tubeGeo1.index.array], position: [0,0,0], friction: 0.05, restitution: 0.2 }));
+  const [tubeRef2] = useTrimesh(() => ({ type: 'Static', args: [tubeGeo2.attributes.position.array, tubeGeo2.index.array], position: [0,0,0], friction: 0.05, restitution: 0.2 }));
+  const [tubeRef3] = useTrimesh(() => ({ type: 'Static', args: [tubeGeo3.attributes.position.array, tubeGeo3.index.array], position: [0,0,0], friction: 0.05, restitution: 0.2 }));
 
   // 4. Grand Basket (Catching flying balls safely)
   // Tubes end at Z=28, Y=-6.
