@@ -23,7 +23,9 @@ function DrumPanel({ index, isDoor, isDrawing, drumAngle }) {
     position: [initX, initY, 0],
     rotation: [0, 0, initRotZ],
     collisionFilterGroup: 1,
-    collisionFilterMask: 1
+    collisionFilterMask: 1,
+    friction: 0.8,
+    restitution: 0.2
   }));
 
   useFrame(() => {
@@ -62,8 +64,8 @@ function DrumCaps({ drumAngle }) {
   const initFrontZ = L / 2;
   const initBackZ = -L / 2;
 
-  const [frontRef, frontApi] = useCylinder(() => ({ type: 'Kinematic', args: [R, R, 0.2, 8], position: [0, 0, initFrontZ], rotation: [Math.PI/2, 0, 0] }));
-  const [backRef, backApi] = useCylinder(() => ({ type: 'Kinematic', args: [R, R, 0.2, 8], position: [0, 0, initBackZ], rotation: [Math.PI/2, 0, 0] }));
+  const [frontRef, frontApi] = useCylinder(() => ({ type: 'Kinematic', args: [R, R, 0.2, 8], position: [0, 0, initFrontZ], rotation: [Math.PI/2, 0, 0], friction: 0.8, restitution: 0.2 }));
+  const [backRef, backApi] = useCylinder(() => ({ type: 'Kinematic', args: [R, R, 0.2, 8], position: [0, 0, initBackZ], rotation: [Math.PI/2, 0, 0], friction: 0.8, restitution: 0.2 }));
 
   useFrame(() => {
     frontApi.rotation.set(Math.PI/2, drumAngle.current - Math.PI/8, 0);
@@ -118,8 +120,8 @@ function Ball({ num, index, onWin, winnerAnnounced }) {
     mass: 1,
     args: [0.4],
     position: [(Math.random() - 0.5) * 3, (Math.random() - 0.5) * 3, (Math.random() - 0.5) * 4],
-    restitution: 0.6,
-    friction: 0.1,
+    restitution: 0.4,
+    friction: 0.8,
   }));
 
   useEffect(() => {
