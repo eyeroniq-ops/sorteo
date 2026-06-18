@@ -121,18 +121,17 @@ function EpicMachine() {
   const [subRefR] = useTrimesh(() => ({ type: 'Static', args: [subFunnelGeo.attributes.position.array, subFunnelGeo.index.array], position: subPosRight, friction: 0.1 }));
   const [subRefC] = useTrimesh(() => ({ type: 'Static', args: [subFunnelGeo.attributes.position.array, subFunnelGeo.index.array], position: subPosCenter, friction: 0.1 }));
 
-  // 3. Three Tubes
+  // 3. Three Tubes (Completely separated to prevent intersections)
   const tubeGeo1 = useMemo(() => {
+    // Curve 1: Strictly Left side (Negative X)
     const curve = new THREE.CatmullRomCurve3([
       new THREE.Vector3(-1.2, 1, 1),
-      new THREE.Vector3(-1.2, 0, 1),
-      new THREE.Vector3(-4, -1, 3),
-      new THREE.Vector3(-6, -2, 0),
-      new THREE.Vector3(-4, -3, -2),
-      new THREE.Vector3(-2, -4, 2),
-      new THREE.Vector3(-3, -4.5, 6),
-      new THREE.Vector3(-4, -5, 12),
-      new THREE.Vector3(-2, -5, 19) // Drop into basket
+      new THREE.Vector3(-2, 0, 1),
+      new THREE.Vector3(-6, -1, 4),
+      new THREE.Vector3(-8, -2, 8),
+      new THREE.Vector3(-4, -3, 12),
+      new THREE.Vector3(-6, -4, 15),
+      new THREE.Vector3(-3, -5, 19) // Drop into basket
     ]);
     const geo = new THREE.TubeGeometry(curve, 128, 0.8, 16, false);
     geo.scale(-1, 1, 1);
@@ -140,14 +139,15 @@ function EpicMachine() {
   }, []);
 
   const tubeGeo2 = useMemo(() => {
+    // Curve 2: Strictly Right side (Positive X)
     const curve = new THREE.CatmullRomCurve3([
       new THREE.Vector3(1.2, 1, 1),
-      new THREE.Vector3(1.2, 0, 1),
-      new THREE.Vector3(4, -1, 3),
-      new THREE.Vector3(5, -2, 6),
-      new THREE.Vector3(2, -3, 10),
-      new THREE.Vector3(6, -4, 14),
-      new THREE.Vector3(2, -5, 19) // Drop into basket
+      new THREE.Vector3(2, 0, 1),
+      new THREE.Vector3(6, -1, 4),
+      new THREE.Vector3(8, -2, 8),
+      new THREE.Vector3(4, -3, 12),
+      new THREE.Vector3(6, -4, 15),
+      new THREE.Vector3(3, -5, 19) // Drop into basket
     ]);
     const geo = new THREE.TubeGeometry(curve, 128, 0.8, 16, false);
     geo.scale(-1, 1, 1);
@@ -155,13 +155,14 @@ function EpicMachine() {
   }, []);
 
   const tubeGeo3 = useMemo(() => {
+    // Curve 3: Strictly Center (X=0)
     const curve = new THREE.CatmullRomCurve3([
       new THREE.Vector3(0, 1, -1),
-      new THREE.Vector3(0, 0, -1),
+      new THREE.Vector3(0, 0, 0),
       new THREE.Vector3(0, -1, 4),
-      new THREE.Vector3(-3, -2, 8),
-      new THREE.Vector3(3, -3, 12),
-      new THREE.Vector3(-2, -4, 16),
+      new THREE.Vector3(0, -3, 8),
+      new THREE.Vector3(0, -2.5, 12), // Speed bump
+      new THREE.Vector3(0, -4, 15),
       new THREE.Vector3(0, -5, 19) // Drop into basket
     ]);
     const geo = new THREE.TubeGeometry(curve, 128, 0.8, 16, false);
@@ -173,14 +174,15 @@ function EpicMachine() {
   const [tubeRef2] = useTrimesh(() => ({ type: 'Static', args: [tubeGeo2.attributes.position.array, tubeGeo2.index.array], position: [0,0,0], friction: 0.1 }));
   const [tubeRef3] = useTrimesh(() => ({ type: 'Static', args: [tubeGeo3.attributes.position.array, tubeGeo3.index.array], position: [0,0,0], friction: 0.1 }));
 
-  // 4. Grand Basket (Catching flying balls)
-  // Tubes end at Z=19, Y=-5. Balls fly out and drop down.
-  // Basket floor at Y=-9. Bounds: Z from 18 to 28. X from -6 to 6.
-  const [basketFloor] = useBox(() => ({ type: 'Static', args: [12, 0.5, 10], position: [0, -9.25, 23], friction: 0.8, restitution: 0.2 }));
-  const [basketBack] = useBox(() => ({ type: 'Static', args: [12, 4, 0.5], position: [0, -7, 28], friction: 0.1 }));
-  const [basketFront] = useBox(() => ({ type: 'Static', args: [12, 4, 0.5], position: [0, -7, 18], friction: 0.1 }));
-  const [basketLeft] = useBox(() => ({ type: 'Static', args: [0.5, 4, 10], position: [-6, -7, 23], friction: 0.1 }));
-  const [basketRight] = useBox(() => ({ type: 'Static', args: [0.5, 4, 10], position: [6, -7, 23], friction: 0.1 }));
+  // 4. Grand Basket (Catching flying balls safely)
+  // Tubes end at Z=19, Y=-5.
+  // Basket floor at Y=-9. Bounds: Z from 18 to 30. X from -8 to 8.
+  const [basketFloor] = useBox(() => ({ type: 'Static', args: [16, 0.5, 12], position: [0, -9.25, 24], friction: 0.8, restitution: 0.2 }));
+  const [basketBack] = useBox(() => ({ type: 'Static', args: [16, 4, 0.5], position: [0, -7, 30], friction: 0.1 }));
+  // Front wall lowered so it NEVER intersects the tubes! Top of wall is Y = -8.5 + 0.5 = -8. Tubes are at Y = -5.
+  const [basketFront] = useBox(() => ({ type: 'Static', args: [16, 1, 0.5], position: [0, -8.5, 18], friction: 0.1 }));
+  const [basketLeft] = useBox(() => ({ type: 'Static', args: [0.5, 4, 12], position: [-8, -7, 24], friction: 0.1 }));
+  const [basketRight] = useBox(() => ({ type: 'Static', args: [0.5, 4, 12], position: [8, -7, 24], friction: 0.1 }));
 
   return (
     <>
@@ -215,11 +217,11 @@ function EpicMachine() {
         <mesh geometry={tubeGeo3}><meshBasicMaterial {...wireMatProps} /></mesh>
       </mesh>
       
-      <mesh ref={basketFloor}><boxGeometry args={[12, 0.5, 10]}/><meshStandardMaterial color="#d4af37" metalness={0.8} roughness={0.2} /></mesh>
-      <mesh ref={basketBack}><boxGeometry args={[12, 4, 0.5]}/><meshStandardMaterial {...glassMatProps}/></mesh>
-      <mesh ref={basketFront}><boxGeometry args={[12, 4, 0.5]}/><meshStandardMaterial {...glassMatProps}/></mesh>
-      <mesh ref={basketLeft}><boxGeometry args={[0.5, 4, 10]}/><meshStandardMaterial {...glassMatProps}/></mesh>
-      <mesh ref={basketRight}><boxGeometry args={[0.5, 4, 10]}/><meshStandardMaterial {...glassMatProps}/></mesh>
+      <mesh ref={basketFloor}><boxGeometry args={[16, 0.5, 12]}/><meshStandardMaterial color="#d4af37" metalness={0.8} roughness={0.2} /></mesh>
+      <mesh ref={basketBack}><boxGeometry args={[16, 4, 0.5]}/><meshStandardMaterial {...glassMatProps}/></mesh>
+      <mesh ref={basketFront}><boxGeometry args={[16, 1, 0.5]}/><meshStandardMaterial {...glassMatProps}/></mesh>
+      <mesh ref={basketLeft}><boxGeometry args={[0.5, 4, 12]}/><meshStandardMaterial {...glassMatProps}/></mesh>
+      <mesh ref={basketRight}><boxGeometry args={[0.5, 4, 12]}/><meshStandardMaterial {...glassMatProps}/></mesh>
     </>
   );
 }
