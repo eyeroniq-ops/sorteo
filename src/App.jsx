@@ -1,9 +1,92 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import html2canvas from 'html2canvas';
 import { Download, CheckCircle, AlertTriangle, Gem, Sparkles, FileText, ShieldCheck, Disc, Calendar } from 'lucide-react';
 import './index.css';
 
-function App() {
+function Countdown() {
+  const [timeLeft, setTimeLeft] = useState({
+    days: 0,
+    hours: 0,
+    minutes: 0,
+    seconds: 0
+  });
+
+  useEffect(() => {
+    // Target date: Sunday, June 28, 2026 at 12:00 PM
+    const targetDate = new Date('2026-06-28T12:00:00');
+
+    const timer = setInterval(() => {
+      const now = new Date();
+      const difference = targetDate.getTime() - now.getTime();
+
+      if (difference > 0) {
+        setTimeLeft({
+          days: Math.floor(difference / (1000 * 60 * 60 * 24)),
+          hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
+          minutes: Math.floor((difference / 1000 / 60) % 60),
+          seconds: Math.floor((difference / 1000) % 60)
+        });
+      } else {
+        clearInterval(timer);
+      }
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div className="countdown-container">
+      <div className="countdown-box">
+        <span className="countdown-number">{String(timeLeft.days).padStart(2, '0')}</span>
+        <span className="countdown-label">Días</span>
+      </div>
+      <div className="countdown-separator">:</div>
+      <div className="countdown-box">
+        <span className="countdown-number">{String(timeLeft.hours).padStart(2, '0')}</span>
+        <span className="countdown-label">Hrs</span>
+      </div>
+      <div className="countdown-separator">:</div>
+      <div className="countdown-box">
+        <span className="countdown-number">{String(timeLeft.minutes).padStart(2, '0')}</span>
+        <span className="countdown-label">Min</span>
+      </div>
+      <div className="countdown-separator">:</div>
+      <div className="countdown-box">
+        <span className="countdown-number">{String(timeLeft.seconds).padStart(2, '0')}</span>
+        <span className="countdown-label">Seg</span>
+      </div>
+    </div>
+  );
+}
+
+function Home() {
+  return (
+    <div className="app-container home-page">
+      <header className="header" style={{ marginBottom: '2rem' }}>
+        <h1 className="brand" style={{ fontSize: '5.5rem' }}>Comin</h1>
+        <p style={{ fontSize: '1.5rem', marginTop: '-0.5rem', fontStyle: 'italic', fontFamily: 'serif', color: 'var(--color-gold-light)' }}>
+          Una pieza para recordar
+        </p>
+      </header>
+
+      <div className="home-content">
+        <h2 className="home-title">EL GRAN SORTEO</h2>
+        <p className="home-subtitle">Adquiere tu boleto y gana una joya exclusiva.</p>
+        
+        <Countdown />
+
+        <div style={{ marginTop: '3rem' }}>
+          <Link to="/boletos" className="btn btn-primary" style={{ display: 'inline-block', padding: '1rem 3rem', fontSize: '1.2rem', textDecoration: 'none' }}>
+            Ir a los Boletos
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Tickets() {
   const [tickets, setTickets] = useState({});
   const [loading, setLoading] = useState(true);
   const [selectedTicket, setSelectedTicket] = useState(null);
@@ -164,10 +247,12 @@ function App() {
             </div>
           </div>
 
-          <button className="btn btn-primary" onClick={handleDownload} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center', width: '300px' }}>
+          <button className="btn btn-primary" onClick={handleDownload} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center', width: '300px', marginBottom: '1rem' }}>
             <Download size={20} />
             Descargar Boleto PNG
           </button>
+          
+          <Link to="/" style={{ color: 'var(--color-gold)', textDecoration: 'underline' }}>Volver al inicio</Link>
         </div>
       </div>
     );
@@ -175,10 +260,14 @@ function App() {
 
   return (
     <div className="app-container">
-      <header className="header">
+      <header className="header" style={{ marginBottom: '1rem' }}>
         <h1 className="brand">Comin</h1>
         <p>Selecciona tu boleto para el sorteo</p>
       </header>
+      
+      <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+        <Link to="/" style={{ color: 'var(--color-text-muted)', textDecoration: 'underline', fontSize: '0.9rem' }}>← Volver al inicio</Link>
+      </div>
 
       <div className="tickets-grid">
         {Array.from({ length: 100 }, (_, i) => i + 1).map(num => {
@@ -248,6 +337,17 @@ function App() {
         </div>
       )}
     </div>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/boletos" element={<Tickets />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 
